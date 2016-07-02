@@ -6,13 +6,19 @@
 Json scheme = parseJsonString(`{
 	"type": "object",
 	"properties": {
-		"foo": { "type": "integer" },
-		"bar": { "type": "string" }
+		"foo": { 
+			"type": "integer",
+			"minimum": 0
+		},
+		"bar": { 
+			"type": "string",
+			"maxLength": 255
+		}
 	}
 }`);
 
 Json json = parseJsonString(`{
-	"fee": 42, 
+	"foo": 42, 
 	"bar": "baz"
 }`);
 
