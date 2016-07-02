@@ -1,5 +1,9 @@
 sudo: false
+
 language: d
 
 d:
   - dmd-2.070.0
+
+notifications:
+  email: false
