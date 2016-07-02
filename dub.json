@@ -1,0 +1,9 @@
+{
+	"name": "vibe-d-json-schema",
+	"description": "Add JSON Schema validation for vibe.d JSON",
+	"license": "MIT",
+	"authors": ["Vladimir Gamalian"],
+	"dependencies": {
+		"vibe-d": "~>0.7.28"
+	}
+}
