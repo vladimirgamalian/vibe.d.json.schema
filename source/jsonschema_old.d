@@ -1,4 +1,4 @@
-module jsonschema;
+module jsonschema_old;
 
 import vibe.d;
 

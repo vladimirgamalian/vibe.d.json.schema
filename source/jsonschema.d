@@ -1,4 +1,4 @@
-module jsonschemanew;
+module jsonschema;
 
 import vibe.d;
 
@@ -637,9 +637,10 @@ bool validatorItems(Json schema, Json json)
 			if (i < items.length)
 			{
 				Json subSchema = items[i];
+
 				if (subSchema.type != Json.Type.object)
 					throw new Exception("items of \"items\" array MUST be objects");
-				if (!validateJson(items, e))
+				if (!validateJson(subSchema, e))
 					return false;
 			}
 			else if (addItems)
