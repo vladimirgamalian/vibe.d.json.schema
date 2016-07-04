@@ -615,6 +615,10 @@ bool validatorItems(Json schema, Json json)
 	if (json.type != Json.Type.array)
 		return true;
 
+	bool addItems = true;
+	if (additionalItems.type == Json.Type.bool_)
+		addItems = additionalItems.to!bool;
+
 	if (items.type == Json.Type.object)
 	{
 		if (additionalItems.type != Json.Type.undefined)
@@ -624,10 +628,6 @@ bool validatorItems(Json schema, Json json)
 			if (!validateJson(items, e))
 				return false;
 	}
-
-	bool addItems = true;
-	if (additionalItems.type == Json.Type.bool_)
-		addItems = additionalItems.to!bool;
 
 	if (items.type == Json.Type.array)
 	{
@@ -649,6 +649,92 @@ bool validatorItems(Json schema, Json json)
 			}
 			else
 				return false;
+		}
+	}
+
+	return true;
+}
+
+unittest {
+	//TODO: more tests
+}
+
+bool validatorMinItems(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.3.3
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("minItems" in schema);
+
+	Json minItems = schema["minItems"];
+	if (!testType(minItems, "integer"))
+	    throw new Exception("The value of \"minItems\" MUST be an integer");
+	long m = minItems.to!long;
+	if (m < 0)
+		throw new Exception("The value of \"minItems\" MUST be greater than, or equal to, 0");
+
+	if (json.type != Json.Type.array)
+		return true;
+
+	return (json.length >= m);
+}
+
+unittest {
+	//TODO: more tests
+}
+
+bool validatorMaxItems(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.3.2
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("maxItems" in schema);
+
+	Json maxItems = schema["maxItems"];
+	if (!testType(maxItems, "integer"))
+	    throw new Exception("The value of \"maxItems\" MUST be an integer");
+	long m = maxItems.to!long;
+	if (m < 0)
+		throw new Exception("The value of \"maxItems\" MUST be greater than, or equal to, 0");
+
+	if (json.type != Json.Type.array)
+		return true;
+
+	return (json.length <= m);
+}
+
+unittest {
+	//TODO: more tests
+}
+
+bool validatorUniqueItems(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.3.4
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("uniqueItems" in schema);
+
+	Json uniqueItems = schema["uniqueItems"];
+	if (uniqueItems.type != Json.Type.bool_)
+	    throw new Exception("The value of \"uniqueItems\" MUST be a boolean");
+
+	if (json.type != Json.Type.array)
+		return true;
+
+	if (uniqueItems.get!bool)
+	{
+		//TODO: use RedBlackTree
+		bool[string] a;
+		foreach (size_t i, Json e; json)
+		{
+			//TODO: check if string with qoutes
+			string s = e.toString;
+			if (s in a)
+				return false;
+			a[s] = true;
 		}
 	}
 
@@ -722,17 +808,27 @@ bool validateJson(Json schema, Json json)
 					return false;
 				break;
 
+			case "minItems":
+				if (!validatorMinItems(schema, json))
+					return false;
+				break;
+
+			case "maxItems":
+				if (!validatorMaxItems(schema, json))
+					return false;
+				break;
+
+			case "uniqueItems":
+				if (!validatorUniqueItems(schema, json))
+					return false;
+				break;
+
 			case "pattern":
 			case "format":
 			case "minProperties":
 			case "maxProperties":
 			case "dependencies":
 			case "patternProperties":
-
-			case "minItems":
-			case "maxItems":
-			case "additionalItems":
-			case "uniqueItems":
 				assert(0, "todo");
 
 			default:
