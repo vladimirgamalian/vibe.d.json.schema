@@ -745,6 +745,56 @@ unittest {
 	//TODO: more tests
 }
 
+bool validatorMinProperties(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.2
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("minProperties" in schema);
+
+	Json minProperties = schema["minProperties"];
+	if (!testType(minProperties, "integer"))
+	    throw new Exception("The value of \"minProperties\" MUST be an integer");
+	long m = minProperties.to!long;
+	if (m < 0)
+		throw new Exception("The value of \"minProperties\" MUST be greater than, or equal to, 0");
+
+	if (json.type != Json.Type.object)
+		return true;
+
+	return (json.length >= m);
+}
+
+unittest {
+	//TODO: more tests
+}
+
+bool validatorMaxProperties(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.1
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("maxProperties" in schema);
+
+	Json maxProperties = schema["maxProperties"];
+	if (!testType(maxProperties, "integer"))
+	    throw new Exception("The value of \"maxProperties\" MUST be an integer");
+	long m = maxProperties.to!long;
+	if (m < 0)
+		throw new Exception("The value of \"maxProperties\" MUST be greater than, or equal to, 0");
+
+	if (json.type != Json.Type.object)
+		return true;
+
+	return (json.length <= m);
+}
+
+unittest {
+	//TODO: more tests
+}
+
 bool validateJson(Json schema, Json json)
 {
 	assert(schema.type == Json.Type.object);
@@ -823,10 +873,18 @@ bool validateJson(Json schema, Json json)
 					return false;
 				break;
 
+			case "minProperties":
+				if (!validatorMinProperties(schema, json))
+					return false;
+				break;
+
+			case "maxProperties":
+				if (!validatorMaxProperties(schema, json))
+					return false;
+				break;
+
 			case "pattern":
 			case "format":
-			case "minProperties":
-			case "maxProperties":
 			case "dependencies":
 			case "patternProperties":
 				assert(0, "todo");

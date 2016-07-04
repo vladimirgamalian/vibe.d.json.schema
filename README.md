@@ -39,7 +39,5 @@ assert(valid);
   * pattern
   * format
 * OBJECT
-  * minProperties
-  * maxProperties
   * dependencies
   * patternProperties
