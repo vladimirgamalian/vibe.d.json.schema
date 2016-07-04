@@ -10,3 +10,5 @@ __dummy.html
 /*.sln
 /*.visualdproj
 /.vs
+/*.db
+/*.opendb
