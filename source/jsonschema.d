@@ -563,6 +563,7 @@ bool validatorRequired(Json schema, Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("required" in schema);
 
+	//TODO: replace with check functions
 	Json required = schema["required"];
 	if (required.type != Json.Type.array)
 	    throw new Exception("The value of \"required\" MUST be an array");
@@ -795,6 +796,124 @@ unittest {
 	//TODO: more tests
 }
 
+void checkArray(Json json, string keyword)
+{
+	if (json.type != Json.Type.array)
+	    throw new Exception("The value of \"" ~ keyword ~ "\" MUST be an array");
+}
+
+void checkNonEmptyArray(Json json, string keyword)
+{
+	checkArray(json, keyword);
+	if (json.length == 0)
+		throw new Exception("The \"" ~ keyword ~ "\" array MUST have at least one element");
+}
+
+bool validatorAnyOf(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.4
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("anyOf" in schema);
+
+	Json anyOf = schema["anyOf"];
+	checkNonEmptyArray(anyOf, "anyOf");
+
+	foreach (size_t i, Json e; anyOf)
+	{
+		if (e.type != Json.Type.object)
+			throw new Exception("items of \"anyOf\" array MUST be objects");
+
+		if (validateJson(e, json))
+			return true;
+	}
+
+	return false;
+}
+
+unittest {
+	//TODO: more tests
+}
+
+bool validatorAllOf(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.3
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("allOf" in schema);
+
+	Json allOf = schema["allOf"];
+	checkNonEmptyArray(allOf, "allOf");
+
+	foreach (size_t i, Json e; allOf)
+	{
+		if (e.type != Json.Type.object)
+			throw new Exception("items of \"allOf\" array MUST be objects");
+
+		if (!validateJson(e, json))
+			return false;
+	}
+
+	return true;
+}
+
+unittest {
+	//TODO: more tests
+
+}
+bool validatorOneOf(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.5
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("oneOf" in schema);
+
+	Json oneOf = schema["oneOf"];
+	checkNonEmptyArray(oneOf, "oneOf");
+
+	int valid = 0;
+	foreach (size_t i, Json e; oneOf)
+	{
+		if (e.type != Json.Type.object)
+			throw new Exception("items of \"oneOf\" array MUST be objects");
+
+		if (validateJson(e, json))
+		{
+			valid++;
+			if (valid > 1)
+				break;
+		}
+	}
+
+	return (valid == 1);
+}
+
+unittest {
+	//TODO: more tests
+
+}
+bool validatorNot(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.6
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("not" in schema);
+
+	Json not = schema["not"];
+	if (not.type != Json.Type.object)
+		throw new Exception("The value of \"not\" MUST be an object");
+
+	return !validateJson(not, json);
+}
+
+unittest {
+	//TODO: more tests
+}
+
 bool validateJson(Json schema, Json json)
 {
 	assert(schema.type == Json.Type.object);
@@ -883,6 +1002,26 @@ bool validateJson(Json schema, Json json)
 					return false;
 				break;
 
+			case "anyOf":
+				if (!validatorAnyOf(schema, json))
+					return false;
+				break;
+
+			case "allOf":
+				if (!validatorAllOf(schema, json))
+					return false;
+				break;
+
+			case "oneOf":
+				if (!validatorOneOf(schema, json))
+					return false;
+				break;
+
+			case "not":
+				if (!validatorNot(schema, json))
+					return false;
+				break;
+	
 			case "pattern":
 			case "format":
 			case "dependencies":
