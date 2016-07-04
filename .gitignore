@@ -9,3 +9,6 @@ __dummy.html
 /dub.selections.json
 /*.sln
 /*.visualdproj
+/.vs
+/*.db
+/*.opendb
