@@ -1,561 +1,903 @@
-module jsonschema;
+module jsonschemanew;
 
 import vibe.d;
 
-bool validateJson(Json scheme, Json json)
+version(unittest)
 {
-	string typeString = scheme["type"].get!string;
-	Json.Type jsonType = json.type();
+	alias j = parseJsonString;
+}
 
-	// not supported yet
-	assert(!("enum" in scheme));
-	assert(!("anyOf" in scheme));
-	assert(!("allOf" in scheme));
-	assert(!("oneOf" in scheme));
-	assert(!("not" in scheme));
-	assert(!("definitions" in scheme));
-	assert(!("$ref" in scheme));
+bool testType(Json json, string type)
+{
+	assert(json.type != Json.Type.undefined);
 
-	switch (typeString)
+	switch (type)
 	{
-		case "number":
-		case "integer":
-
-			assert(!("multipleOf" in scheme));
-
-			bool isInteger = ((jsonType == Json.Type.int_) || (jsonType == Json.Type.bigInt));
-			if ((!isInteger) && ((jsonType != Json.Type.float_) || (typeString == "integer")))
-				return false;
-
-			bool exclMin = false;
-			Json exclusiveMinimum = scheme["exclusiveMinimum"];
-			if (exclusiveMinimum.type() != Json.Type.undefined)
-				exclMin = exclusiveMinimum.get!bool;
-
-			bool exclMax = false;
-			Json exclusiveMaximum = scheme["exclusiveMaximum"];
-			if (exclusiveMaximum.type() != Json.Type.undefined)
-				exclMax = exclusiveMaximum.get!bool;
-
-			Json minimum = scheme["minimum"];
-			Json maximum = scheme["maximum"];
-			bool floatComprasion = ((jsonType == Json.Type.float_) || (minimum.type() == Json.Type.float_) || (maximum.type() == Json.Type.float_));
-
-			if (floatComprasion)
-			{
-				double v = json.to!double;
-				if (minimum.type() != Json.Type.undefined)
-				{
-					double min = minimum.to!double;
-					if (exclMin)
-					{
-						if (v <= min)
-							return false;
-					}
-					else
-					{
-						if (v < min)
-							return false;
-					}
-				}
-				if (maximum.type() != Json.Type.undefined)
-				{
-					double max = maximum.to!double;
-					if (exclMax)
-					{
-						if (v >= max)
-							return false;
-					}
-					else
-					{
-						if (v > max)
-							return false;
-					}
-				}
-			}
-			else
-			{
-				long v = json.get!long;
-				if (minimum.type() != Json.Type.undefined)
-				{
-					long min = minimum.get!long;
-					if (exclMin)
-					{
-						if (v <= min)
-							return false;
-					}
-					else
-					{
-						if (v < min)
-							return false;
-					}
-				}
-				if (maximum.type() != Json.Type.undefined)
-				{
-					long max = maximum.get!long;
-					if (exclMax)
-					{
-						if (v >= max)
-							return false;
-					}
-					else
-					{
-						if (v > max)
-							return false;
-					}
-				}
-			}
-
-			break;
-
-		case "string":
-
-			assert(!("pattern" in scheme));
-			assert(!("format" in scheme));
-
-			if (jsonType != Json.Type.string)
-				return false;
-
-			Json minLength = scheme["minLength"];
-			if (minLength.type() != Json.Type.undefined)
-			{
-				long min = minLength.get!long;
-				if (json.length < min)
-					return false;
-			}
-
-			Json maxLength = scheme["maxLength"];
-			if (maxLength.type() != Json.Type.undefined)
-			{
-				long max = maxLength.get!long;
-				if (json.length > max)
-					return false;
-			}
-
-			break;
-
-		case "object":
-
-			assert(!("minProperties" in scheme));
-			assert(!("maxProperties" in scheme));
-			assert(!("dependencies" in scheme));
-			assert(!("patternProperties" in scheme));
-
-			if (jsonType != Json.Type.object)
-				return false;
-
-			bool additionalPropertiesAllowed = true;
-			Json additionalProperties = scheme["additionalProperties"];
-			if (additionalProperties.type() != Json.Type.undefined)
-				additionalPropertiesAllowed = additionalProperties.get!bool;
-
-			Json required = scheme["required"];
-			if (required.type() != Json.Type.undefined)
-			{
-				assert(required.type() == Json.Type.array);
-				foreach(Json j; required)
-					if (!((j.get!string) in json))
-						return false;
-			}
-
-			Json prop = scheme["properties"];
-			assert((prop.type() == Json.Type.object) || (prop.type() == Json.Type.undefined));
-
-			if (prop.type() == Json.Type.object)
-			{
-				foreach (string k, Json v; json)
-				{
-					Json p = prop[k];
-
-					if (p.type() == Json.Type.undefined)
-					{
-						if (!additionalPropertiesAllowed)
-							return false;
-					}
-					else
-					{
-						if (!validateJson(p, v))
-							return false;
-					}
-				}
-			}
-
-			break;
-
 		case "array":
-
-			assert(!("additionalItems" in scheme));
-			assert(!("uniqueItems" in scheme));
-
-			if (jsonType != Json.Type.array)
-				return false;
-
-			Json minItems = scheme["minItems"];
-			if (minItems.type() != Json.Type.undefined)
-			{
-				long min = minItems.get!long;
-				if (json.length < min)
-					return false;
-			}
-
-			Json maxItems = scheme["maxItems"];
-			if (minItems.type() != Json.Type.undefined)
-			{
-				long max = maxItems.get!long;
-				if (json.length > max)
-					return false;
-			}
-
-			Json items = scheme["items"];
-			switch (items.type())
-			{
-				case Json.Type.undefined:
-					break;
-				case Json.Type.object:
-					foreach (Json i; json)
-						if (!validateJson(items, i))
-							return false;
-					break;
-				case Json.Type.array:
-					assert(0);
-				default:
-					assert(0);
-			}
-
-			break;
-
-		case "null":
-			if (jsonType != Json.Type.null_)
-				return false;
-			break;
+			return json.type == Json.Type.array;
 
 		case "boolean":
-			if (jsonType != Json.Type.bool_)
-				return false;
-			break;
+			return json.type == Json.Type.bool_;
+
+		case "integer":
+			return (json.type == Json.Type.int_) || (json.type == Json.Type.bigInt);
+
+		case "null":
+			return (json.type == Json.Type.null_);
+
+		case "number":
+			return (json.type == Json.Type.int_) || (json.type == Json.Type.bigInt) || (json.type == Json.Type.float_);
+
+		case "object":
+			return (json.type == Json.Type.object);
+
+		case "string":
+			return (json.type == Json.Type.string);
 
 		default:
-			assert(0);
+			throw new Exception("Unknown \"type\" value: " ~ type);
+	}
+}
+
+unittest {
+	try testType(Json(false), "foo"); catch (Exception e) assert(e.msg == "Unknown \"type\" value: foo");
+	try testType(Json(42), "bar"); catch (Exception e) assert(e.msg == "Unknown \"type\" value: bar");
+
+	assert(testType(Json.emptyArray, "array"));
+	assert(!testType(Json.emptyArray, "boolean"));
+	assert(!testType(Json.emptyArray, "integer"));
+	assert(!testType(Json.emptyArray, "null"));
+	assert(!testType(Json.emptyArray, "number"));
+	assert(!testType(Json.emptyArray, "object"));
+	assert(!testType(Json.emptyArray, "string"));
+
+	assert(testType(j(`[0, 1]`), "array"));
+	assert(testType(j(`["foo", false]`), "array"));
+
+	assert(!testType(Json(false), "array"));
+	assert(testType(Json(false), "boolean"));
+	assert(!testType(Json(false), "integer"));
+	assert(!testType(Json(false), "null"));
+	assert(!testType(Json(false), "number"));
+	assert(!testType(Json(false), "object"));
+	assert(!testType(Json(false), "string"));
+
+	assert(!testType(Json(true), "array"));
+	assert(testType(Json(true), "boolean"));
+	assert(!testType(Json(true), "integer"));
+	assert(!testType(Json(true), "null"));
+	assert(!testType(Json(true), "number"));
+	assert(!testType(Json(true), "object"));
+	assert(!testType(Json(true), "string"));
+
+	assert(!testType(Json(0), "array"));
+	assert(!testType(Json(0), "boolean"));
+	assert(testType(Json(0), "integer"));
+	assert(!testType(Json(0), "null"));
+	assert(testType(Json(0), "number"));
+	assert(!testType(Json(0), "object"));
+	assert(!testType(Json(0), "string"));
+
+	assert(!testType(Json(0.0), "array"));
+	assert(!testType(Json(0.0), "boolean"));
+	assert(!testType(Json(0.0), "integer"));
+	assert(!testType(Json(0.0), "null"));
+	assert(testType(Json(0.0), "number"));
+	assert(!testType(Json(0.0), "object"));
+	assert(!testType(Json(0.0), "string"));
+
+	assert(testType(Json(0), "integer"));
+	assert(testType(Json(0), "number"));
+	assert(testType(Json(0.0), "number"));
+	assert(testType(Json(1), "integer"));
+	assert(testType(Json(1), "number"));
+	assert(testType(Json(1.0), "number"));
+	assert(testType(Json(-1), "integer"));
+	assert(testType(Json(-1), "number"));
+	assert(testType(Json(-1.0), "number"));
+	assert(testType(Json(0x1ffffffff), "integer"));
+	assert(testType(Json(0x1ffffffff), "number"));
+
+	assert(!testType(Json(null), "array"));
+	assert(!testType(Json(null), "boolean"));
+	assert(!testType(Json(null), "integer"));
+	assert(testType(Json(null), "null"));
+	assert(!testType(Json(null), "number"));
+	assert(!testType(Json(null), "object"));
+	assert(!testType(Json(null), "string"));
+
+	assert(!testType(Json(""), "array"));
+	assert(!testType(Json(""), "boolean"));
+	assert(!testType(Json(""), "integer"));
+	assert(!testType(Json(""), "null"));
+	assert(!testType(Json(""), "number"));
+	assert(!testType(Json(""), "object"));
+	assert(testType(Json(""), "string"));
+
+	assert(!testType(Json("foo"), "array"));
+	assert(!testType(Json("foo"), "boolean"));
+	assert(!testType(Json("foo"), "integer"));
+	assert(!testType(Json("foo"), "null"));
+	assert(!testType(Json("foo"), "number"));
+	assert(!testType(Json("foo"), "object"));
+	assert(testType(Json("foo"), "string"));
+
+	assert(!testType(Json.emptyObject, "array"));
+	assert(!testType(Json.emptyObject, "boolean"));
+	assert(!testType(Json.emptyObject, "integer"));
+	assert(!testType(Json.emptyObject, "null"));
+	assert(!testType(Json.emptyObject, "number"));
+	assert(testType(Json.emptyObject, "object"));
+	assert(!testType(Json.emptyObject, "string"));
+	assert(testType(j(`{"foo": "bar"}`), "object"));
+}
+
+bool validatorType(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.2
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("type" in schema);
+
+	Json value = schema["type"];
+
+	switch (value.type)
+	{
+		case Json.Type.array:
+			//TODO: Check array items for unique
+			//TODO: Size of array can not be bigger than 7
+			if (value.length == 0)
+				throw new Exception("The value of\"type\" keyword MUST NOT be an empty array");
+			foreach (size_t i, Json e; value) 
+			{
+				if (e.type != Json.Type.string)
+					throw new Exception("Elements of \"type\" keyword array MUST be strings");
+				if (testType(json, e.get!string))
+					return true;
+			}
+			return false;
+
+		case Json.Type.string:
+			return testType(json, value.get!string);
+
+		default:
+			throw new Exception("The value of \"type\" keyword MUST be either a string or an array of string");
+	}
+}
+
+unittest {
+	try validatorType(j(`{"type": 42}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"type\" keyword MUST be either a string or an array of string");
+	try validatorType(j(`{"type": null}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"type\" keyword MUST be either a string or an array of string");
+	try validatorType(j(`{"type": true}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"type\" keyword MUST be either a string or an array of string");
+	try validatorType(j(`{"type": {}}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"type\" keyword MUST be either a string or an array of string");
+
+	try validatorType(j(`{"type": "foo"}`), Json("foo")); catch (Exception e) assert(e.msg == "Unknown \"type\" value: foo");
+
+	try validatorType(j(`{"type": []}`), Json(0)); catch (Exception e) assert(e.msg == "The value of\"type\" keyword MUST NOT be an empty array");
+	try validatorType(j(`{"type": [42, 0]}`), Json(0)); catch (Exception e) assert(e.msg == "Elements of \"type\" keyword array MUST be strings");
+	try validatorType(j(`{"type": [true]}`), Json(0)); catch (Exception e) assert(e.msg == "Elements of \"type\" keyword array MUST be strings");
+	try validatorType(j(`{"type": ["foo"]}`), Json(0)); catch (Exception e) assert(e.msg == "Unknown \"type\" value: foo");
+	
+	assert(validatorType(j(`{"type": "string"}`), Json("foo")));
+	assert(!validatorType(j(`{"type": "string"}`), Json(42)));
+	assert(!validatorType(j(`{"type": "string"}`), Json(null)));
+	assert(!validatorType(j(`{"type": "string"}`), Json(false)));
+
+	assert(validatorType(j(`{"type": "integer"}`), Json(42)));
+	assert(!validatorType(j(`{"type": "integer"}`), Json(3.14)));
+	assert(validatorType(j(`{"type": "number"}`), Json(42)));
+	assert(validatorType(j(`{"type": "number"}`), Json(3.14)));
+
+	assert(validatorType(j(`{"type": ["number", "string"]}`), Json(3.14)));
+	assert(validatorType(j(`{"type": ["number", "string"]}`), Json("foo")));
+}
+
+bool validatorMinimum(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.1.3
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("minimum" in schema);
+
+	if (!testType(json, "number"))
+		return true;
+
+	Json value = schema["minimum"];
+	if (!testType(value, "number"))
+		throw new Exception("The value of \"minimum\" MUST be a number");
+
+	bool exclusive = false;
+	Json exclusiveMinimum = schema["exclusiveMinimum"];
+	if (exclusiveMinimum.type() != Json.Type.undefined)
+	{
+		if (exclusiveMinimum.type() != Json.Type.bool_)
+			throw new Exception("The value of \"exclusiveMinimum\" MUST be a boolean");
+		exclusive = exclusiveMinimum.get!bool;
+	}
+
+	bool floatComprasion = ((value.type == Json.Type.float_) || (json.type == Json.Type.float_));
+	if (floatComprasion)
+	{
+		double v = json.to!double;
+		double m = value.to!double;
+		if (exclusive)
+			return (v > m);
+		return (v >= m);
+	}
+
+	long v = json.to!long;
+	long m = value.to!long;
+
+	if (exclusive)
+		return (v > m);
+	return (v >= m);
+}
+
+unittest {
+	try validatorMinimum(j(`{"minimum": false}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"minimum\" MUST be a number");
+	assert(validatorMinimum(j(`{"minimum": 0}`), Json(0)));
+	assert(validatorMinimum(j(`{"minimum": 0}`), Json(1)));
+	assert(!validatorMinimum(j(`{"minimum": 0}`), Json(-1)));
+
+	assert(validatorMinimum(j(`{"minimum": 0}`), Json(1)));
+	assert(!validatorMinimum(j(`{"minimum": 0}`), Json(-1)));
+
+	assert(validatorMinimum(j(`{"minimum": 1}`), Json(2)));
+	assert(!validatorMinimum(j(`{"minimum": 1}`), Json(0)));
+	assert(validatorMinimum(j(`{"minimum": 1.1}`), Json(2)));
+	assert(!validatorMinimum(j(`{"minimum": 1.1}`), Json(0)));
+	assert(validatorMinimum(j(`{"minimum": 1}`), Json(2.1)));
+	assert(!validatorMinimum(j(`{"minimum": 1}`), Json(0.1)));
+	assert(validatorMinimum(j(`{"minimum": 1.1}`), Json(2.1)));
+	assert(!validatorMinimum(j(`{"minimum": 1.1}`), Json(0.1)));
+
+	try validatorMinimum(j(`{"minimum": 0, "exclusiveMinimum": null}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"exclusiveMinimum\" MUST be a boolean");
+	try validatorMinimum(j(`{"minimum": 0, "exclusiveMinimum": 42}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"exclusiveMinimum\" MUST be a boolean");
+	assert(validatorMinimum(j(`{"minimum": 0, "exclusiveMinimum": false}`), Json(0)));
+	assert(!validatorMinimum(j(`{"minimum": 0, "exclusiveMinimum": true}`), Json(0)));
+}
+
+bool validatorExclusiveMinimum(Json schema, Json json)
+{
+	// covered in validatorMinimum, just check minimum field presense
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("exclusiveMinimum" in schema);
+
+	if (!("minimum" in schema))
+		throw new Exception("If \"exclusiveMinimum\" is present, \"minimum\" MUST also be present.");
+
+	return true;
+}
+
+unittest
+{
+	try validatorExclusiveMinimum(j(`{"exclusiveMinimum": false}`), Json(0)); catch (Exception e) assert(e.msg == "If \"exclusiveMinimum\" is present, \"minimum\" MUST also be present.");
+	validatorExclusiveMinimum(j(`{"minimum": 1, "exclusiveMinimum": false}`), Json(42));
+}
+
+bool validatorMaximum(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.1.2
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("maximum" in schema);
+
+	if (!testType(json, "number"))
+		return true;
+
+	Json value = schema["maximum"];
+	if (!testType(value, "number"))
+		throw new Exception("The value of \"maximum\" MUST be a number");
+
+	bool exclusive = false;
+	Json exclusiveMaximum = schema["exclusiveMaximum"];
+	if (exclusiveMaximum.type() != Json.Type.undefined)
+	{
+		if (exclusiveMaximum.type() != Json.Type.bool_)
+			throw new Exception("The value of \"exclusiveMaximum\" MUST be a boolean");
+		exclusive = exclusiveMaximum.get!bool;
+	}
+
+	bool floatComprasion = ((value.type == Json.Type.float_) || (json.type == Json.Type.float_));
+	if (floatComprasion)
+	{
+		double v = json.to!double;
+		double m = value.to!double;
+		if (exclusive)
+			return (v < m);
+		return (v <= m);
+	}
+
+	long v = json.to!long;
+	long m = value.to!long;
+
+	if (exclusive)
+		return (v < m);
+	return (v <= m);
+}
+
+unittest {
+	try validatorMaximum(j(`{"maximum": false}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"maximum\" MUST be a number");
+	assert(validatorMaximum(j(`{"maximum": 0}`), Json(0)));
+	assert(validatorMaximum(j(`{"maximum": 0}`), Json(-1)));
+	assert(!validatorMaximum(j(`{"maximum": 0}`), Json(1)));
+
+	assert(validatorMaximum(j(`{"maximum": 2}`), Json(1)));
+	assert(!validatorMaximum(j(`{"maximum": 2}`), Json(3)));
+
+	assert(validatorMaximum(j(`{"maximum": 1}`), Json(0)));
+	assert(!validatorMaximum(j(`{"maximum": 1}`), Json(2)));
+	assert(validatorMaximum(j(`{"maximum": 1.1}`), Json(0)));
+	assert(!validatorMaximum(j(`{"maximum": 1.1}`), Json(2)));
+	assert(validatorMaximum(j(`{"maximum": 1}`), Json(0.1)));
+	assert(!validatorMaximum(j(`{"maximum": 1}`), Json(2.1)));
+	assert(validatorMaximum(j(`{"maximum": 1.1}`), Json(0.1)));
+	assert(!validatorMaximum(j(`{"maximum": 1.1}`), Json(2.1)));
+
+	try validatorMaximum(j(`{"maximum": 0, "exclusiveMaximum": null}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"exclusiveMaximum\" MUST be a boolean");
+	try validatorMaximum(j(`{"maximum": 0, "exclusiveMaximum": 42}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"exclusiveMaximum\" MUST be a boolean");
+	assert(validatorMaximum(j(`{"maximum": 1, "exclusiveMaximum": false}`), Json(1)));
+	assert(!validatorMaximum(j(`{"maximum": 1, "exclusiveMaximum": true}`), Json(1)));
+}
+
+bool validatorExclusiveMaximum(Json schema, Json json)
+{
+	// covered in validatorMinimum, just check minimum field presense
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("exclusiveMaximum" in schema);
+
+	if (!("maximum" in schema))
+		throw new Exception("If \"exclusiveMaximum\" is present, \"maximum\" MUST also be present.");
+
+	return true;
+}
+
+unittest
+{
+	try validatorExclusiveMaximum(j(`{"exclusiveMaximum": false}`), Json(0)); catch (Exception e) assert(e.msg == "If \"exclusiveMaximum\" is present, \"maximum\" MUST also be present.");
+	validatorExclusiveMaximum(j(`{"maximum": 1, "exclusiveMaximum": false}`), Json(42));
+}
+
+bool validatorMultipleOf(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.1.1
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("multipleOf" in schema);
+
+	Json multipleOf = schema["multipleOf"];
+	if (!testType(multipleOf, "number"))
+		throw new Exception("The value of \"multipleOf\" MUST be a number");
+	
+	bool floatComprasion = ((multipleOf.type == Json.Type.float_) || (json.type == Json.Type.float_));
+	if (floatComprasion)
+	{
+		double m = multipleOf.to!double;
+		if (m <= 0)
+			throw new Exception("The value of \"multipleOf\" MUST be greater than 0");
+		if (!testType(json, "number"))
+			return true;
+		double v = json.to!double;
+		//TODO: tolerance
+		double k = v / m;
+		return ((k - std.math.fabs(k)) < 0.0000001);
+	}
+	
+	long m = multipleOf.to!long;
+	if (m <= 0)
+		throw new Exception("The value of \"multipleOf\" MUST be greater than 0");
+	if (!testType(json, "number"))
+		return true;
+	long v = json.to!long;
+	return ((v % m) == 0);
+}
+
+unittest {
+	try validatorMultipleOf(j(`{"multipleOf": false}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be a number");
+	try validatorMultipleOf(j(`{"multipleOf": "foo"}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be a number");
+	try validatorMultipleOf(j(`{"multipleOf": null}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be a number");
+
+	try validatorMultipleOf(j(`{"multipleOf": 0}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be greater than 0");
+	try validatorMultipleOf(j(`{"multipleOf": -1}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be greater than 0");
+	try validatorMultipleOf(j(`{"multipleOf": 0.0}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be greater than 0");
+	try validatorMultipleOf(j(`{"multipleOf": -1.1}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be greater than 0");
+
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json("foo")));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(false)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(0)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(2)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(-2)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(4)));
+	assert(!validatorMultipleOf(j(`{"multipleOf": 2}`), Json(3)));
+	assert(!validatorMultipleOf(j(`{"multipleOf": 2}`), Json(-3)));
+
+	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(0)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(2)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(-2)));
+
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(0.0)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(2.0)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(-2.0)));
+
+	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(0.0)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(2.0)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(-2.0)));
+}
+
+bool validatorMinLength(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.2.2
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("minLength" in schema);
+
+	Json minLength = schema["minLength"];
+	if (!testType(minLength, "integer"))
+		throw new Exception("The value of \"minLength\" MUST be an integer");
+	long m = minLength.to!long;
+	if (m < 0)
+		throw new Exception("The value of \"minLength\" MUST be greater than, or equal to, 0");
+
+	if (json.type != Json.Type.string)
+		return true;
+
+	return (json.length >= m);
+}
+
+unittest {
+	try validatorMinLength(j(`{"minLength": false}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"minLength\" MUST be an integer");
+	try validatorMinLength(j(`{"minLength": "foo"}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"minLength\" MUST be an integer");
+	try validatorMinLength(j(`{"minLength": 1.2}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"minLength\" MUST be an integer");
+	try validatorMinLength(j(`{"minLength": -1.2}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"minLength\" MUST be an integer");
+	try validatorMinLength(j(`{"minLength": -1}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"minLength\" MUST be greater than, or equal to, 0");
+
+	assert(validatorMinLength(j(`{"minLength": 0}`), Json(0)));
+	assert(validatorMinLength(j(`{"minLength": 0}`), Json(false)));
+
+	assert(validatorMinLength(j(`{"minLength": 0}`), Json("")));
+	assert(!validatorMinLength(j(`{"minLength": 1}`), Json("")));
+	assert(validatorMinLength(j(`{"minLength": 1}`), Json("1")));
+	assert(validatorMinLength(j(`{"minLength": 3}`), Json("foo")));
+	assert(!validatorMinLength(j(`{"minLength": 4}`), Json("foo")));
+}
+
+bool validatorMaxLength(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.2.1
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("maxLength" in schema);
+
+	Json maxLength = schema["maxLength"];
+	if (!testType(maxLength, "integer"))
+	    throw new Exception("The value of \"maxLength\" MUST be an integer");
+	long m = maxLength.to!long;
+	if (m < 0)
+		throw new Exception("The value of \"maxLength\" MUST be greater than, or equal to, 0");
+
+	if (json.type != Json.Type.string)
+		return true;
+
+	return (json.length <= m);
+}
+
+unittest {
+	try validatorMaxLength(j(`{"maxLength": false}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"maxLength\" MUST be an integer");
+	try validatorMaxLength(j(`{"maxLength": "foo"}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"maxLength\" MUST be an integer");
+	try validatorMaxLength(j(`{"maxLength": 1.2}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"maxLength\" MUST be an integer");
+	try validatorMaxLength(j(`{"maxLength": -1.2}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"maxLength\" MUST be an integer");
+	try validatorMaxLength(j(`{"maxLength": -1}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"maxLength\" MUST be greater than, or equal to, 0");
+
+	assert(validatorMaxLength(j(`{"maxLength": 0}`), Json(0)));
+	assert(validatorMaxLength(j(`{"maxLength": 0}`), Json(false)));
+	
+	assert(validatorMaxLength(j(`{"maxLength": 0}`), Json("")));
+	assert(!validatorMaxLength(j(`{"maxLength": 0}`), Json("0")));
+	assert(!validatorMaxLength(j(`{"maxLength": 0}`), Json("foo")));
+	assert(!validatorMaxLength(j(`{"maxLength": 2}`), Json("foo")));
+	assert(validatorMaxLength(j(`{"maxLength": 3}`), Json("foo")));
+}
+
+bool validatorProperties(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.4
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("properties" in schema);
+
+	Json properties = schema["properties"];
+	if (properties.type != Json.Type.object)
+	    throw new Exception("The value of \"properties\" MUST be an object");
+
+	if (json.type != Json.Type.object)
+		return true;
+
+	Json additionalProperties = schema["additionalProperties"];
+	if (additionalProperties.type != Json.Type.undefined)
+		if (additionalProperties != Json.Type.object)
+			throw new Exception("The value of \"additionalProperties\" MUST be an object");
+
+	foreach (string k, v; json)
+	{
+		Json subSchema = properties[k];
+		if (subSchema.type != Json.Type.undefined)
+		{
+			if (!validateJson(subSchema, v))
+				return false;
+		} 
+		else if (additionalProperties.type != Json.Type.undefined)
+		{
+			if (!validateJson(additionalProperties, v))
+				return false;
+		}
 	}
 
 	return true;
 }
 
 unittest {
-	Json scheme = parseJsonString(`{"type": "null"}`);
-	assert(validateJson(scheme, Json(null)));
-	assert(!validateJson(scheme, Json(false)));
-	assert(!validateJson(scheme, Json(true)));
-	assert(!validateJson(scheme, Json(1)));
-	assert(!validateJson(scheme, Json(1.5)));
-	assert(!validateJson(scheme, Json("1")));
-	assert(!validateJson(scheme, Json.emptyArray));
-	assert(!validateJson(scheme, Json.emptyObject));
+	Json schema = j(`{"properties": {"foo": { "type": "integer" }, "bar": { "type": "string" }}}`);
+	assert(validatorProperties(schema, j(`{"foo": 42, "bar": "baz"}`)));
+	assert(!validatorProperties(schema, j(`{"foo": "s", "bar": "baz"}`)));
+	assert(!validatorProperties(schema, j(`{"foo": 42, "bar": 0}`)));
+
+	//TODO: more tests
+}
+
+bool validatorRequired(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.3
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("required" in schema);
+
+	Json required = schema["required"];
+	if (required.type != Json.Type.array)
+	    throw new Exception("The value of \"required\" MUST be an array");
+	if (required.length == 0)
+		throw new Exception("The \"required\" array MUST have at least one element");
+
+	//TODO: test required items for unique
+
+	if (json.type != Json.Type.object)
+		return true;
+
+	foreach (size_t i, Json e; required)
+	{
+		if (e.type != Json.Type.string)
+			throw new Exception("Elements of \"required\" array MUST be strings");
+		if (!((e.to!string) in json))
+			return false;
+	}
+
+	return true;
 }
 
 unittest {
-	Json scheme = parseJsonString(`{"type": "boolean"}`);
-	assert(!validateJson(scheme, Json(null)));
-	assert(validateJson(scheme, Json(false)));
-	assert(validateJson(scheme, Json(true)));
-	assert(!validateJson(scheme, Json(1)));
-	assert(!validateJson(scheme, Json(1.5)));
-	assert(!validateJson(scheme, Json("1")));
-	assert(!validateJson(scheme, Json.emptyArray));
-	assert(!validateJson(scheme, Json.emptyObject));
+	//TODO: more tests
+
+	Json schema = j(`{"required": ["foo"]}`);
+	assert(validatorRequired(schema, j(`{"foo": 42}`)));
+	assert(validatorRequired(schema, j(`{"foo": false}`)));
+	assert(validatorRequired(schema, j(`{"foo": 42, "bar": "baz"}`)));
+	assert(!validatorRequired(schema, j(`{"bar": "baz"}`)));
+	assert(!validatorRequired(schema, j(`{"baz": 42, "bar": "baz"}`)));
 }
 
-unittest {
-	Json scheme = parseJsonString(`{"type": "number"}`);
-	assert(!validateJson(scheme, Json(null)));
-	assert(!validateJson(scheme, Json(false)));
-	assert(!validateJson(scheme, Json(true)));
-	assert(validateJson(scheme, Json(1)));
-	assert(validateJson(scheme, Json(1.5)));
-	assert(!validateJson(scheme, Json("1")));
-	assert(!validateJson(scheme, Json.emptyArray));
-	assert(!validateJson(scheme, Json.emptyObject));
-}
+bool validatorItems(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.3.1
 
-unittest {
-	Json scheme = parseJsonString(`{"type": "integer"}`);
-	assert(!validateJson(scheme, Json(null)));
-	assert(!validateJson(scheme, Json(false)));
-	assert(!validateJson(scheme, Json(true)));
-	assert(validateJson(scheme, Json(1)));
-	assert(!validateJson(scheme, Json(1.5)));
-	assert(!validateJson(scheme, Json("1")));
-	assert(!validateJson(scheme, Json.emptyArray));
-	assert(!validateJson(scheme, Json.emptyObject));
-}
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("items" in schema);
 
-unittest {
-	Json scheme = parseJsonString(`{"type": "string"}`);
-	assert(!validateJson(scheme, Json(null)));
-	assert(!validateJson(scheme, Json(false)));
-	assert(!validateJson(scheme, Json(true)));
-	assert(!validateJson(scheme, Json(1)));
-	assert(!validateJson(scheme, Json(1.5)));
-	assert(validateJson(scheme, Json("1")));
-	assert(!validateJson(scheme, Json.emptyArray));
-	assert(!validateJson(scheme, Json.emptyObject));
-}
+	Json items = schema["items"];
+	if ((items.type != Json.Type.object) && (items.type != Json.Type.array))
+	    throw new Exception("The value of \"items\" MUST be either an object or an array");
 
-unittest {
-	Json scheme = parseJsonString(`{"type": "object"}`);
-	assert(!validateJson(scheme, Json(null)));
-	assert(!validateJson(scheme, Json(false)));
-	assert(!validateJson(scheme, Json(true)));
-	assert(!validateJson(scheme, Json(1)));
-	assert(!validateJson(scheme, Json(1.5)));
-	assert(!validateJson(scheme, Json("1")));
-	assert(!validateJson(scheme, Json.emptyArray));
-	assert(validateJson(scheme, Json.emptyObject));
-}
+	Json additionalItems = schema["additionalItems"];
+	if ((additionalItems.type != Json.Type.undefined) && (additionalItems.type != Json.Type.bool_) && (additionalItems.type != Json.Type.object))
+	    throw new Exception("The value of \"additionalItems\" MUST be either a boolean or an object.");
 
-unittest {
-	Json scheme = parseJsonString(`{"type": "array"}`);
-	assert(!validateJson(scheme, Json(null)));
-	assert(!validateJson(scheme, Json(false)));
-	assert(!validateJson(scheme, Json(true)));
-	assert(!validateJson(scheme, Json(1)));
-	assert(!validateJson(scheme, Json(1.5)));
-	assert(!validateJson(scheme, Json("1")));
-	assert(validateJson(scheme, Json.emptyArray));
-	assert(!validateJson(scheme, Json.emptyObject));
-}
+	if (json.type != Json.Type.array)
+		return true;
 
-unittest {
-	Json scheme = parseJsonString(`{"type": "string", "minLength": 2, "maxLength": 3}`);
-	assert(!validateJson(scheme, Json("1")));
-	assert(validateJson(scheme, Json("12")));
-	assert(validateJson(scheme, Json("123")));
-	assert(!validateJson(scheme, Json("1234")));
-}
+	bool addItems = true;
+	if (additionalItems.type == Json.Type.bool_)
+		addItems = additionalItems.to!bool;
 
-unittest {
-	Json j = parseJsonString(`{"foo": 42, "bar": "baz"}`);
-	assert(!validateJson(parseJsonString(`{"type": "string"}`), j));
-	assert(!validateJson(parseJsonString(`{"type": "array"}`), j));
+	if (items.type == Json.Type.object)
+	{
+		if (additionalItems.type != Json.Type.undefined)
+			logWarn("When \"items\" is a single schema, the \"additionalItems\" keyword is meaningless, and it should not be used.");
 
-	Json scheme = parseJsonString(`
-								  {
-								  "type": "object",
-								  "properties": {
-								  "foo": { "type": "integer" },
-								  "bar": { "type": "string" }
-								  }
-								  }
-								  `);
-	assert(validateJson(scheme, j));
-	assert(validateJson(scheme, parseJsonString(`{"fee": 42, "bar": "baz"}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"foo": "s", "bar": "baz"}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"foo": 42, "bar": 0}`)));
-}
+		foreach (size_t i, Json e; json)
+			if (!validateJson(items, e))
+				return false;
+	}
 
-unittest {
-	Json scheme = parseJsonString(`
-								  {
-								  "type": "object",
-								  "required": ["foo", "bar"],
-								  "properties": {
-								  "foo": { "type": "integer" },
-								  "bar": { "type": "string" },
-								  "baz": { "type": "boolean" },
-								  }
-								  }
-								  `);
-	assert(validateJson(scheme, parseJsonString(`{"foo": 42, "bar": "baz"}`)));
-	assert(validateJson(scheme, parseJsonString(`{"foo": 42, "bar": "777", "baz": false}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"foo": 42, "baz": true}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"bar": "777"}`)));
-}
-
-unittest {
-	Json scheme = parseJsonString(`
-								  {
-								  "type": "object",
-								  "properties": {
-								  "foo": { "type": "integer" },
-								  "bar": { "type": "string" }
-								  }
-								  }
-								  `);
-	assert(validateJson(scheme, parseJsonString(`{"foo": 42, "bar": "baz"}`)));
-	assert(validateJson(scheme, parseJsonString(`{"foo": 42, "bar": "baz", "value": 0}`)));
-}
-
-unittest {
-	Json scheme = parseJsonString(`
-								  {
-								  "type": "object",
-								  "additionalProperties": false,
-								  "properties": {
-								  "foo": { "type": "integer" },
-								  "bar": { "type": "string" }
-								  }
-								  }
-								  `);
-	assert(validateJson(scheme, parseJsonString(`{"foo": 42, "bar": "baz"}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"foo": 42, "bar": "baz", "value": 0}`)));
-}
-
-unittest {
-	Json j = parseJsonString(`[1, 2]`);
-	assert(!validateJson(parseJsonString(`{"type": "string"}`), j));
-	assert(!validateJson(parseJsonString(`{"type": "object"}`), j));
-
-	Json scheme = parseJsonString(`
+	if (items.type == Json.Type.array)
+	{
+		foreach (size_t i, Json e; json)
 		{
-			"type": "array"
+			if (i < items.length)
+			{
+				Json subSchema = items[i];
+				if (subSchema.type != Json.Type.object)
+					throw new Exception("items of \"items\" array MUST be objects");
+				if (!validateJson(items, e))
+					return false;
+			}
+			else if (addItems)
+			{
+				if (additionalItems.type == Json.Type.object)
+					if (!validateJson(additionalItems, e))
+						return false;
+			}
+			else
+				return false;
 		}
-	`);
-	assert(validateJson(scheme, j));
-	assert(validateJson(scheme, parseJsonString(`[]`)));
-	assert(!validateJson(scheme, parseJsonString(`{"foo": 42}`)));
-	assert(validateJson(scheme, parseJsonString(`["1", "2"]`)));
-	assert(validateJson(scheme, parseJsonString(`["1", 2, {}]`)));
-	assert(validateJson(scheme, parseJsonString(`["1", 2, {"foo": 42}]`)));
+	}
+
+	return true;
 }
 
 unittest {
-	Json scheme = parseJsonString(`
-								  {
-								  "type": "array",
-								  "items": {
-								  "type": "integer"
-								  }
-								  }
-								  `);
-	assert(validateJson(scheme, parseJsonString(`[]`)));
-	assert(validateJson(scheme, parseJsonString(`[1]`)));
-	assert(validateJson(scheme, parseJsonString(`[1, 2]`)));
-	assert(!validateJson(scheme, parseJsonString(`["1"]`)));
-	assert(!validateJson(scheme, parseJsonString(`["1", "2"]`)));
-	assert(!validateJson(scheme, parseJsonString(`[1, "2"]`)));
-	assert(!validateJson(scheme, parseJsonString(`[1, {}]`)));
+	//TODO: more tests
+}
+
+bool validatorMinItems(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.3.3
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("minItems" in schema);
+
+	Json minItems = schema["minItems"];
+	if (!testType(minItems, "integer"))
+	    throw new Exception("The value of \"minItems\" MUST be an integer");
+	long m = minItems.to!long;
+	if (m < 0)
+		throw new Exception("The value of \"minItems\" MUST be greater than, or equal to, 0");
+
+	if (json.type != Json.Type.array)
+		return true;
+
+	return (json.length >= m);
 }
 
 unittest {
-	Json scheme = parseJsonString(`
-								  {
-								  "type": "array",
-								  "items": {
-								  "type": "string"
-								  }
-								  }
-								  `);
-	assert(validateJson(scheme, parseJsonString(`[]`)));
-	assert(validateJson(scheme, parseJsonString(`["foo"]`)));
-	assert(validateJson(scheme, parseJsonString(`["foo", "43"]`)));
-	assert(!validateJson(scheme, parseJsonString(`[1]`)));
-	assert(!validateJson(scheme, parseJsonString(`[1, 2]`)));
-	assert(!validateJson(scheme, parseJsonString(`[1, "foo"]`)));
+	//TODO: more tests
+}
+
+bool validatorMaxItems(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.3.2
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("maxItems" in schema);
+
+	Json maxItems = schema["maxItems"];
+	if (!testType(maxItems, "integer"))
+	    throw new Exception("The value of \"maxItems\" MUST be an integer");
+	long m = maxItems.to!long;
+	if (m < 0)
+		throw new Exception("The value of \"maxItems\" MUST be greater than, or equal to, 0");
+
+	if (json.type != Json.Type.array)
+		return true;
+
+	return (json.length <= m);
 }
 
 unittest {
-	Json scheme = parseJsonString(`
+	//TODO: more tests
+}
+
+bool validatorUniqueItems(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.3.4
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("uniqueItems" in schema);
+
+	Json uniqueItems = schema["uniqueItems"];
+	if (uniqueItems.type != Json.Type.bool_)
+	    throw new Exception("The value of \"uniqueItems\" MUST be a boolean");
+
+	if (json.type != Json.Type.array)
+		return true;
+
+	if (uniqueItems.get!bool)
+	{
+		//TODO: use RedBlackTree
+		bool[string] a;
+		foreach (size_t i, Json e; json)
 		{
-			"type": "array",
-			"minItems": 2,
-			"maxItems": 3
+			//TODO: check if string with qoutes
+			string s = e.toString;
+			if (s in a)
+				return false;
+			a[s] = true;
 		}
-	`);
-	assert(!validateJson(scheme, parseJsonString(`[]`)));
-	assert(validateJson(scheme, parseJsonString(`["foo", "bar"]`)));
-	assert(validateJson(scheme, parseJsonString(`[1, 2]`)));
-	assert(validateJson(scheme, parseJsonString(`[1, "foo"]`)));
-	assert(validateJson(scheme, parseJsonString(`[1, "foo", 3]`)));
-	assert(validateJson(scheme, parseJsonString(`[1, 2, 3]`)));
-	assert(validateJson(scheme, parseJsonString(`[1, {}, 3]`)));
-	assert(!validateJson(scheme, parseJsonString(`[1, 2, 3, 4]`)));
-	assert(!validateJson(scheme, parseJsonString(`[1, 2, {}, 4]`)));
-	assert(!validateJson(scheme, parseJsonString(`[1, 2, 3, 4, 5]`)));
+	}
+
+	return true;
 }
 
 unittest {
-	Json scheme = parseJsonString(`
-								  {
-								  "type": "object",
-								  "properties": {
-								  "value": { "type": "integer", "minimum": -42, "maximum": 42 }
-								  }
-								  }
-								  `);
-	assert(validateJson(scheme, parseJsonString(`{"value": 0}`)));
-	assert(validateJson(scheme, parseJsonString(`{"value": -42}`)));
-	assert(validateJson(scheme, parseJsonString(`{"value": 42}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"value": -43}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"value": 43}`)));
+	//TODO: more tests
+}
+
+bool validatorMinProperties(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.2
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("minProperties" in schema);
+
+	Json minProperties = schema["minProperties"];
+	if (!testType(minProperties, "integer"))
+	    throw new Exception("The value of \"minProperties\" MUST be an integer");
+	long m = minProperties.to!long;
+	if (m < 0)
+		throw new Exception("The value of \"minProperties\" MUST be greater than, or equal to, 0");
+
+	if (json.type != Json.Type.object)
+		return true;
+
+	return (json.length >= m);
 }
 
 unittest {
-	Json scheme = parseJsonString(`
-								  {
-								  "type": "object",
-								  "properties": {
-								  "value": { "type": "number", "minimum": -0.5, "maximum": 0.5 }
-								  }
-								  }
-								  `);
-	assert(validateJson(scheme, parseJsonString(`{"value": 0}`)));
-	assert(validateJson(scheme, parseJsonString(`{"value": 0.4}`)));
-	assert(validateJson(scheme, parseJsonString(`{"value": -0.4}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"value": -0.6}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"value": 0.6}`)));
+	//TODO: more tests
+}
+
+bool validatorMaxProperties(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.1
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("maxProperties" in schema);
+
+	Json maxProperties = schema["maxProperties"];
+	if (!testType(maxProperties, "integer"))
+	    throw new Exception("The value of \"maxProperties\" MUST be an integer");
+	long m = maxProperties.to!long;
+	if (m < 0)
+		throw new Exception("The value of \"maxProperties\" MUST be greater than, or equal to, 0");
+
+	if (json.type != Json.Type.object)
+		return true;
+
+	return (json.length <= m);
 }
 
 unittest {
-	Json scheme = parseJsonString(`
-								  {
-								  "type": "object",
-								  "properties": {
-									  "value": { 
-										"type": "integer", 
-										"minimum": -42,
-										"exclusiveMinimum": true, 
-										"maximum": 42,
-										"exclusiveMaximum": true
-									  }
-								  }
-								  }
-								  `);
-	assert(validateJson(scheme, parseJsonString(`{"value": 0}`)));
-	assert(validateJson(scheme, parseJsonString(`{"value": -41}`)));
-	assert(validateJson(scheme, parseJsonString(`{"value": 41}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"value": -42}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"value": 42}`)));
+	//TODO: more tests
+}
+
+bool validateJson(Json schema, Json json)
+{
+	assert(schema.type == Json.Type.object);
+
+	foreach (string key, value; schema)
+	{
+		switch (key)
+		{
+			case "type":
+				if (!validatorType(schema, json))
+					return false;
+				break;
+
+			case "minimum":
+				if (!validatorMinimum(schema, json))
+					return false;
+				break;
+
+			case "exclusiveMinimum":
+				if (!validatorExclusiveMinimum(schema, json))
+					return false;
+				break;
+
+			case "maximum":
+				if (!validatorMaximum(schema, json))
+					return false;
+				break;
+
+			case "exclusiveMaximum":
+				if (!validatorExclusiveMaximum(schema, json))
+					return false;
+				break;
+
+			case "multipleOf":
+				if (!validatorMultipleOf(schema, json))
+					return false;
+				break;
+
+			case "minLength":
+				if (!validatorMinLength(schema, json))
+					return false;
+				break;
+
+			case "maxLength":
+				if (!validatorMaxLength(schema, json))
+					return false;
+				break;
+
+			case "properties":
+				if (!validatorProperties(schema, json))
+					return false;
+				break;
+
+			case "required":
+				if (!validatorRequired(schema, json))
+					return false;
+				break;
+
+			case "items":
+				if (!validatorItems(schema, json))
+					return false;
+				break;
+
+			case "minItems":
+				if (!validatorMinItems(schema, json))
+					return false;
+				break;
+
+			case "maxItems":
+				if (!validatorMaxItems(schema, json))
+					return false;
+				break;
+
+			case "uniqueItems":
+				if (!validatorUniqueItems(schema, json))
+					return false;
+				break;
+
+			case "minProperties":
+				if (!validatorMinProperties(schema, json))
+					return false;
+				break;
+
+			case "maxProperties":
+				if (!validatorMaxProperties(schema, json))
+					return false;
+				break;
+
+			case "pattern":
+			case "format":
+			case "dependencies":
+			case "patternProperties":
+				assert(0, "todo");
+
+			default:
+				break;
+		}
+	}
+
+	return true;
 }
 
 unittest {
-	Json scheme = parseJsonString(`
-								  {
-								  "type": "object",
-								  "properties": {
-								  "value": { "type": "integer" }
-								  }
-								  }
-								  `);
-	assert(validateJson(scheme, parseJsonString(`{"value": 0}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"value": 0.}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"value": 1.}`)));
-	assert(!validateJson(scheme, parseJsonString(`{"value": 1.2}`)));
-}
-
-unittest {
-	Json scheme = parseJsonString(`
-								  {
-								  "type": "object",
-								  "properties": {
-								  "value": { "type": "number" }
-								  }
-								  }
-								  `);
-	assert(validateJson(scheme, parseJsonString(`{"value": 0.}`)));
-	assert(validateJson(scheme, parseJsonString(`{"value": 1.}`)));
-	assert(validateJson(scheme, parseJsonString(`{"value": 1.2}`)));
-	assert(validateJson(scheme, parseJsonString(`{"value": -1.2}`)));
-	assert(validateJson(scheme, parseJsonString(`{"value": 0}`)));
-	assert(validateJson(scheme, parseJsonString(`{"value": 42}`)));
-	assert(validateJson(scheme, parseJsonString(`{"value": -42}`)));
+	Json scheme = parseJsonString(`{"type": "integer", "minimum": 0}`);
+	assert(validateJson(scheme, Json(42)));
 }
