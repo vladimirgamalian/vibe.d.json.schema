@@ -35,20 +35,11 @@ assert(valid);
   * not
   * definitions
   * $ref
-* NUMBER, INTEGER
-  * multipleOf
 * STRING
   * pattern
   * format
 * OBJECT
-  * unspecified type
   * minProperties
   * maxProperties
   * dependencies
   * patternProperties
-  * additionalProperties  as object
-* ARRAY
-  * additionalItems
-  * uniqueItems
-  * items as array
-  
