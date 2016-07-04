@@ -388,7 +388,7 @@ bool validatorMultipleOf(Json schema, Json json)
 		double v = json.to!double;
 		//TODO: tolerance
 		double k = v / m;
-		return ((k - std.math.fabs(k)) < 0.0000001);
+		return ((k - std.math.trunc(k)) < 0.0000001);
 	}
 	
 	long m = multipleOf.to!long;

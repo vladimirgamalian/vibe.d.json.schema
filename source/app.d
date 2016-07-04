@@ -56,9 +56,10 @@ void main()
 	string testFolder = "JSON-Schema-Test-Suite/tests/draft4";
 
 	string[] excluded = ["default.json", "definitions.json", "dependencies.json",
-	"enum.json", "pattern.json", "patternProperties.json", "ref.json", 
-	"refRemote.json", "additionalProperties.json",
-	"maxLength.json", "minLength.json", "multipleOf.json",
+	"pattern.json", "patternProperties.json", "ref.json", "refRemote.json",
+	"enum.json",
+	"additionalProperties.json",
+	"maxLength.json", "minLength.json",
 	"properties.json"];
 	
 	string[] files = std.file.dirEntries(testFolder, "*.json", std.file.SpanMode.shallow)
