@@ -596,6 +596,69 @@ unittest {
 	assert(!validatorRequired(schema, j(`{"baz": 42, "bar": "baz"}`)));
 }
 
+bool validatorItems(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.3.1
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("items" in schema);
+
+	Json items = schema["items"];
+	if ((items.type != Json.Type.object) && (items.type != Json.Type.array))
+	    throw new Exception("The value of \"items\" MUST be either an object or an array");
+
+	Json additionalItems = schema["additionalItems"];
+	if ((additionalItems.type != Json.Type.undefined) && (additionalItems.type != Json.Type.bool_) && (additionalItems.type != Json.Type.object))
+	    throw new Exception("The value of \"additionalItems\" MUST be either a boolean or an object.");
+
+	if (json.type != Json.Type.array)
+		return true;
+
+	if (items.type == Json.Type.object)
+	{
+		if (additionalItems.type != Json.Type.undefined)
+			logWarn("When \"items\" is a single schema, the \"additionalItems\" keyword is meaningless, and it should not be used.");
+
+		foreach (size_t i, Json e; json)
+			if (!validateJson(items, e))
+				return false;
+	}
+
+	bool addItems = true;
+	if (additionalItems.type == Json.Type.bool_)
+		addItems = additionalItems.to!bool;
+
+	if (items.type == Json.Type.array)
+	{
+		foreach (size_t i, Json e; json)
+		{
+			if (i < items.length)
+			{
+				Json subSchema = items[i];
+				if (subSchema.type != Json.Type.object)
+					throw new Exception("items of \"items\" array MUST be objects");
+				if (!validateJson(items, e))
+					return false;
+			}
+			else if (addItems)
+			{
+				if (additionalItems.type == Json.Type.object)
+					if (!validateJson(additionalItems, e))
+						return false;
+			}
+			else
+				return false;
+		}
+	}
+
+	return true;
+}
+
+unittest {
+	//TODO: more tests
+}
+
 bool validateJson(Json schema, Json json)
 {
 	assert(schema.type == Json.Type.object);
@@ -654,12 +717,22 @@ bool validateJson(Json schema, Json json)
 					return false;
 				break;
 
+			case "items":
+				if (!validatorItems(schema, json))
+					return false;
+				break;
+
 			case "pattern":
 			case "format":
 			case "minProperties":
 			case "maxProperties":
 			case "dependencies":
 			case "patternProperties":
+
+			case "minItems":
+			case "maxItems":
+			case "additionalItems":
+			case "uniqueItems":
 				assert(0, "todo");
 
 			default:
@@ -674,5 +747,3 @@ unittest {
 	Json scheme = parseJsonString(`{"type": "integer", "minimum": 0}`);
 	assert(validateJson(scheme, Json(42)));
 }
-
-//additionalProperties, required
