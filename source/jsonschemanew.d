@@ -512,9 +512,88 @@ bool validatorProperties(Json schema, Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.4
 
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("properties" in schema);
 
+	Json properties = schema["properties"];
+	if (properties.type != Json.Type.object)
+	    throw new Exception("The value of \"properties\" MUST be an object");
 
-	return false;
+	if (json.type != Json.Type.object)
+		return true;
+
+	Json additionalProperties = schema["additionalProperties"];
+	if (additionalProperties.type != Json.Type.undefined)
+		if (additionalProperties != Json.Type.object)
+			throw new Exception("The value of \"additionalProperties\" MUST be an object");
+
+	foreach (string k, v; json)
+	{
+		Json subSchema = properties[k];
+		if (subSchema.type != Json.Type.undefined)
+		{
+			if (!validateJson(subSchema, v))
+				return false;
+		} 
+		else if (additionalProperties.type != Json.Type.undefined)
+		{
+			if (!validateJson(additionalProperties, v))
+				return false;
+		}
+	}
+
+	return true;
+}
+
+unittest {
+	Json schema = j(`{"properties": {"foo": { "type": "integer" }, "bar": { "type": "string" }}}`);
+	assert(validatorProperties(schema, j(`{"foo": 42, "bar": "baz"}`)));
+	assert(!validatorProperties(schema, j(`{"foo": "s", "bar": "baz"}`)));
+	assert(!validatorProperties(schema, j(`{"foo": 42, "bar": 0}`)));
+
+	//TODO: more tests
+}
+
+bool validatorRequired(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.3
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("required" in schema);
+
+	Json required = schema["required"];
+	if (required.type != Json.Type.array)
+	    throw new Exception("The value of \"required\" MUST be an array");
+	if (required.length == 0)
+		throw new Exception("The \"required\" array MUST have at least one element");
+
+	//TODO: test required items for unique
+
+	if (json.type != Json.Type.object)
+		return true;
+
+	foreach (size_t i, Json e; required)
+	{
+		if (e.type != Json.Type.string)
+			throw new Exception("Elements of \"required\" array MUST be strings");
+		if (!((e.to!string) in json))
+			return false;
+	}
+
+	return true;
+}
+
+unittest {
+	//TODO: more tests
+
+	Json schema = j(`{"required": ["foo"]}`);
+	assert(validatorRequired(schema, j(`{"foo": 42}`)));
+	assert(validatorRequired(schema, j(`{"foo": false}`)));
+	assert(validatorRequired(schema, j(`{"foo": 42, "bar": "baz"}`)));
+	assert(!validatorRequired(schema, j(`{"bar": "baz"}`)));
+	assert(!validatorRequired(schema, j(`{"baz": 42, "bar": "baz"}`)));
 }
 
 bool validateJson(Json schema, Json json)
@@ -567,6 +646,11 @@ bool validateJson(Json schema, Json json)
 
 			case "properties":
 				if (!validatorProperties(schema, json))
+					return false;
+				break;
+
+			case "required":
+				if (!validatorRequired(schema, json))
 					return false;
 				break;
 
