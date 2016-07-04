@@ -2,6 +2,11 @@ module jsonschemanew;
 
 import vibe.d;
 
+version(unittest)
+{
+	alias j = parseJsonString;
+}
+
 bool testType(Json json, string type)
 {
 	assert(json.type != Json.Type.undefined);
@@ -46,8 +51,8 @@ unittest {
 	assert(!testType(Json.emptyArray, "object"));
 	assert(!testType(Json.emptyArray, "string"));
 
-	assert(testType(Json([Json(0), Json(1)]), "array"));
-	assert(testType(Json([Json("foo"), Json(false)]), "array"));
+	assert(testType(j(`[0, 1]`), "array"));
+	assert(testType(j(`["foo", false]`), "array"));
 
 	assert(!testType(Json(false), "array"));
 	assert(testType(Json(false), "boolean"));
@@ -124,7 +129,7 @@ unittest {
 	assert(!testType(Json.emptyObject, "number"));
 	assert(testType(Json.emptyObject, "object"));
 	assert(!testType(Json.emptyObject, "string"));
-	assert(testType(Json(["foo": Json("bar")]), "object"));
+	assert(testType(j(`{"foo": "bar"}`), "object"));
 }
 
 bool validatorType(Json schema, Json json)
@@ -162,30 +167,30 @@ bool validatorType(Json schema, Json json)
 }
 
 unittest {
-	try validatorType(Json(["type": Json(42)]), Json(0)); catch (Exception e) assert(e.msg == "The value of \"type\" keyword MUST be either a string or an array of string");
-	try validatorType(Json(["type": Json(null)]), Json(0)); catch (Exception e) assert(e.msg == "The value of \"type\" keyword MUST be either a string or an array of string");
-	try validatorType(Json(["type": Json(true)]), Json(0)); catch (Exception e) assert(e.msg == "The value of \"type\" keyword MUST be either a string or an array of string");
-	try validatorType(Json(["type": Json.emptyObject]), Json(0)); catch (Exception e) assert(e.msg == "The value of \"type\" keyword MUST be either a string or an array of string");
+	try validatorType(j(`{"type": 42}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"type\" keyword MUST be either a string or an array of string");
+	try validatorType(j(`{"type": null}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"type\" keyword MUST be either a string or an array of string");
+	try validatorType(j(`{"type": true}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"type\" keyword MUST be either a string or an array of string");
+	try validatorType(j(`{"type": {}}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"type\" keyword MUST be either a string or an array of string");
 
-	try validatorType(Json(["type": Json("foo")]), Json("foo")); catch (Exception e) assert(e.msg == "Unknown \"type\" value: foo");
+	try validatorType(j(`{"type": "foo"}`), Json("foo")); catch (Exception e) assert(e.msg == "Unknown \"type\" value: foo");
 
-	try validatorType(Json(["type": Json.emptyArray]), Json(0)); catch (Exception e) assert(e.msg == "The value of\"type\" keyword MUST NOT be an empty array");
-	try validatorType(Json(["type": Json([Json(42), Json(0)])]), Json(0)); catch (Exception e) assert(e.msg == "Elements of \"type\" keyword array MUST be strings");
-	try validatorType(Json(["type": Json([Json(true)])]), Json(0)); catch (Exception e) assert(e.msg == "Elements of \"type\" keyword array MUST be strings");
-	try validatorType(Json(["type": Json([Json("foo")])]), Json(0)); catch (Exception e) assert(e.msg == "Unknown \"type\" value: foo");
+	try validatorType(j(`{"type": []}`), Json(0)); catch (Exception e) assert(e.msg == "The value of\"type\" keyword MUST NOT be an empty array");
+	try validatorType(j(`{"type": [42, 0]}`), Json(0)); catch (Exception e) assert(e.msg == "Elements of \"type\" keyword array MUST be strings");
+	try validatorType(j(`{"type": [true]}`), Json(0)); catch (Exception e) assert(e.msg == "Elements of \"type\" keyword array MUST be strings");
+	try validatorType(j(`{"type": ["foo"]}`), Json(0)); catch (Exception e) assert(e.msg == "Unknown \"type\" value: foo");
 	
-	assert(validatorType(Json(["type": Json("string")]), Json("foo")));
-	assert(!validatorType(Json(["type": Json("string")]), Json(42)));
-	assert(!validatorType(Json(["type": Json("string")]), Json(null)));
-	assert(!validatorType(Json(["type": Json("string")]), Json(false)));
+	assert(validatorType(j(`{"type": "string"}`), Json("foo")));
+	assert(!validatorType(j(`{"type": "string"}`), Json(42)));
+	assert(!validatorType(j(`{"type": "string"}`), Json(null)));
+	assert(!validatorType(j(`{"type": "string"}`), Json(false)));
 
-	assert(validatorType(Json(["type": Json("integer")]), Json(42)));
-	assert(!validatorType(Json(["type": Json("integer")]), Json(3.14)));
-	assert(validatorType(Json(["type": Json("number")]), Json(42)));
-	assert(validatorType(Json(["type": Json("number")]), Json(3.14)));
+	assert(validatorType(j(`{"type": "integer"}`), Json(42)));
+	assert(!validatorType(j(`{"type": "integer"}`), Json(3.14)));
+	assert(validatorType(j(`{"type": "number"}`), Json(42)));
+	assert(validatorType(j(`{"type": "number"}`), Json(3.14)));
 
-	assert(validatorType(Json(["type": Json([Json("number"), Json("string")])]), Json(3.14)));
-	assert(validatorType(Json(["type": Json([Json("number"), Json("string")])]), Json("foo")));
+	assert(validatorType(j(`{"type": ["number", "string"]}`), Json(3.14)));
+	assert(validatorType(j(`{"type": ["number", "string"]}`), Json("foo")));
 }
 
 bool validatorMinimum(Json schema, Json json)
@@ -230,6 +235,288 @@ bool validatorMinimum(Json schema, Json json)
 	return (v >= m);
 }
 
+unittest {
+	try validatorMinimum(j(`{"minimum": false}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"minimum\" MUST be a number");
+	assert(validatorMinimum(j(`{"minimum": 0}`), Json(0)));
+	assert(validatorMinimum(j(`{"minimum": 0}`), Json(1)));
+	assert(!validatorMinimum(j(`{"minimum": 0}`), Json(-1)));
+
+	assert(validatorMinimum(j(`{"minimum": 0}`), Json(1)));
+	assert(!validatorMinimum(j(`{"minimum": 0}`), Json(-1)));
+
+	assert(validatorMinimum(j(`{"minimum": 1}`), Json(2)));
+	assert(!validatorMinimum(j(`{"minimum": 1}`), Json(0)));
+	assert(validatorMinimum(j(`{"minimum": 1.1}`), Json(2)));
+	assert(!validatorMinimum(j(`{"minimum": 1.1}`), Json(0)));
+	assert(validatorMinimum(j(`{"minimum": 1}`), Json(2.1)));
+	assert(!validatorMinimum(j(`{"minimum": 1}`), Json(0.1)));
+	assert(validatorMinimum(j(`{"minimum": 1.1}`), Json(2.1)));
+	assert(!validatorMinimum(j(`{"minimum": 1.1}`), Json(0.1)));
+
+	try validatorMinimum(j(`{"minimum": 0, "exclusiveMinimum": null}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"exclusiveMinimum\" MUST be a boolean");
+	try validatorMinimum(j(`{"minimum": 0, "exclusiveMinimum": 42}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"exclusiveMinimum\" MUST be a boolean");
+	assert(validatorMinimum(j(`{"minimum": 0, "exclusiveMinimum": false}`), Json(0)));
+	assert(!validatorMinimum(j(`{"minimum": 0, "exclusiveMinimum": true}`), Json(0)));
+}
+
+bool validatorExclusiveMinimum(Json schema, Json json)
+{
+	// covered in validatorMinimum, just check minimum field presense
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("exclusiveMinimum" in schema);
+
+	if (!("minimum" in schema))
+		throw new Exception("If \"exclusiveMinimum\" is present, \"minimum\" MUST also be present.");
+
+	return true;
+}
+
+unittest
+{
+	try validatorExclusiveMinimum(j(`{"exclusiveMinimum": false}`), Json(0)); catch (Exception e) assert(e.msg == "If \"exclusiveMinimum\" is present, \"minimum\" MUST also be present.");
+	validatorExclusiveMinimum(j(`{"minimum": 1, "exclusiveMinimum": false}`), Json(42));
+}
+
+bool validatorMaximum(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.1.2
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("maximum" in schema);
+
+	if (!testType(json, "number"))
+		return true;
+
+	Json value = schema["maximum"];
+	if (!testType(value, "number"))
+		throw new Exception("The value of \"maximum\" MUST be a number");
+
+	bool exclusive = false;
+	Json exclusiveMaximum = schema["exclusiveMaximum"];
+	if (exclusiveMaximum.type() != Json.Type.undefined)
+	{
+		if (exclusiveMaximum.type() != Json.Type.bool_)
+			throw new Exception("The value of \"exclusiveMaximum\" MUST be a boolean");
+		exclusive = exclusiveMaximum.get!bool;
+	}
+
+	bool floatComprasion = ((value.type == Json.Type.float_) || (json.type == Json.Type.float_));
+	if (floatComprasion)
+	{
+		double v = json.to!double;
+		double m = value.to!double;
+		if (exclusive)
+			return (v < m);
+		return (v <= m);
+	}
+
+	long v = json.to!long;
+	long m = value.to!long;
+
+	if (exclusive)
+		return (v < m);
+	return (v <= m);
+}
+
+unittest {
+	try validatorMaximum(j(`{"maximum": false}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"maximum\" MUST be a number");
+	assert(validatorMaximum(j(`{"maximum": 0}`), Json(0)));
+	assert(validatorMaximum(j(`{"maximum": 0}`), Json(-1)));
+	assert(!validatorMaximum(j(`{"maximum": 0}`), Json(1)));
+
+	assert(validatorMaximum(j(`{"maximum": 2}`), Json(1)));
+	assert(!validatorMaximum(j(`{"maximum": 2}`), Json(3)));
+
+	assert(validatorMaximum(j(`{"maximum": 1}`), Json(0)));
+	assert(!validatorMaximum(j(`{"maximum": 1}`), Json(2)));
+	assert(validatorMaximum(j(`{"maximum": 1.1}`), Json(0)));
+	assert(!validatorMaximum(j(`{"maximum": 1.1}`), Json(2)));
+	assert(validatorMaximum(j(`{"maximum": 1}`), Json(0.1)));
+	assert(!validatorMaximum(j(`{"maximum": 1}`), Json(2.1)));
+	assert(validatorMaximum(j(`{"maximum": 1.1}`), Json(0.1)));
+	assert(!validatorMaximum(j(`{"maximum": 1.1}`), Json(2.1)));
+
+	try validatorMaximum(j(`{"maximum": 0, "exclusiveMaximum": null}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"exclusiveMaximum\" MUST be a boolean");
+	try validatorMaximum(j(`{"maximum": 0, "exclusiveMaximum": 42}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"exclusiveMaximum\" MUST be a boolean");
+	assert(validatorMaximum(j(`{"maximum": 1, "exclusiveMaximum": false}`), Json(1)));
+	assert(!validatorMaximum(j(`{"maximum": 1, "exclusiveMaximum": true}`), Json(1)));
+}
+
+bool validatorExclusiveMaximum(Json schema, Json json)
+{
+	// covered in validatorMinimum, just check minimum field presense
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("exclusiveMaximum" in schema);
+
+	if (!("maximum" in schema))
+		throw new Exception("If \"exclusiveMaximum\" is present, \"maximum\" MUST also be present.");
+
+	return true;
+}
+
+unittest
+{
+	try validatorExclusiveMaximum(j(`{"exclusiveMaximum": false}`), Json(0)); catch (Exception e) assert(e.msg == "If \"exclusiveMaximum\" is present, \"maximum\" MUST also be present.");
+	validatorExclusiveMaximum(j(`{"maximum": 1, "exclusiveMaximum": false}`), Json(42));
+}
+
+bool validatorMultipleOf(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.1.1
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("multipleOf" in schema);
+
+	Json multipleOf = schema["multipleOf"];
+	if (!testType(multipleOf, "number"))
+		throw new Exception("The value of \"multipleOf\" MUST be a number");
+	
+	bool floatComprasion = ((multipleOf.type == Json.Type.float_) || (json.type == Json.Type.float_));
+	if (floatComprasion)
+	{
+		double m = multipleOf.to!double;
+		if (m <= 0)
+			throw new Exception("The value of \"multipleOf\" MUST be greater than 0");
+		if (!testType(json, "number"))
+			return true;
+		double v = json.to!double;
+		//TODO: tolerance
+		double k = v / m;
+		return ((k - std.math.fabs(k)) < 0.0000001);
+	}
+	
+	long m = multipleOf.to!long;
+	if (m <= 0)
+		throw new Exception("The value of \"multipleOf\" MUST be greater than 0");
+	if (!testType(json, "number"))
+		return true;
+	long v = json.to!long;
+	return ((v % m) == 0);
+}
+
+unittest {
+	try validatorMultipleOf(j(`{"multipleOf": false}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be a number");
+	try validatorMultipleOf(j(`{"multipleOf": "foo"}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be a number");
+	try validatorMultipleOf(j(`{"multipleOf": null}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be a number");
+
+	try validatorMultipleOf(j(`{"multipleOf": 0}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be greater than 0");
+	try validatorMultipleOf(j(`{"multipleOf": -1}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be greater than 0");
+	try validatorMultipleOf(j(`{"multipleOf": 0.0}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be greater than 0");
+	try validatorMultipleOf(j(`{"multipleOf": -1.1}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"multipleOf\" MUST be greater than 0");
+
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json("foo")));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(false)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(0)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(2)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(-2)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(4)));
+	assert(!validatorMultipleOf(j(`{"multipleOf": 2}`), Json(3)));
+	assert(!validatorMultipleOf(j(`{"multipleOf": 2}`), Json(-3)));
+
+	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(0)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(2)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(-2)));
+
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(0.0)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(2.0)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2}`), Json(-2.0)));
+
+	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(0.0)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(2.0)));
+	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(-2.0)));
+}
+
+bool validatorMinLength(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.2.2
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("minLength" in schema);
+
+	Json minLength = schema["minLength"];
+	if (!testType(minLength, "integer"))
+		throw new Exception("The value of \"minLength\" MUST be an integer");
+	long m = minLength.to!long;
+	if (m < 0)
+		throw new Exception("The value of \"minLength\" MUST be greater than, or equal to, 0");
+
+	if (json.type != Json.Type.string)
+		return true;
+
+	return (json.length >= m);
+}
+
+unittest {
+	try validatorMinLength(j(`{"minLength": false}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"minLength\" MUST be an integer");
+	try validatorMinLength(j(`{"minLength": "foo"}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"minLength\" MUST be an integer");
+	try validatorMinLength(j(`{"minLength": 1.2}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"minLength\" MUST be an integer");
+	try validatorMinLength(j(`{"minLength": -1.2}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"minLength\" MUST be an integer");
+	try validatorMinLength(j(`{"minLength": -1}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"minLength\" MUST be greater than, or equal to, 0");
+
+	assert(validatorMinLength(j(`{"minLength": 0}`), Json(0)));
+	assert(validatorMinLength(j(`{"minLength": 0}`), Json(false)));
+
+	assert(validatorMinLength(j(`{"minLength": 0}`), Json("")));
+	assert(!validatorMinLength(j(`{"minLength": 1}`), Json("")));
+	assert(validatorMinLength(j(`{"minLength": 1}`), Json("1")));
+	assert(validatorMinLength(j(`{"minLength": 3}`), Json("foo")));
+	assert(!validatorMinLength(j(`{"minLength": 4}`), Json("foo")));
+}
+
+bool validatorMaxLength(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.2.1
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("maxLength" in schema);
+
+	Json maxLength = schema["maxLength"];
+	if (!testType(maxLength, "integer"))
+	    throw new Exception("The value of \"maxLength\" MUST be an integer");
+	long m = maxLength.to!long;
+	if (m < 0)
+		throw new Exception("The value of \"maxLength\" MUST be greater than, or equal to, 0");
+
+	if (json.type != Json.Type.string)
+		return true;
+
+	return (json.length <= m);
+}
+
+unittest {
+	try validatorMaxLength(j(`{"maxLength": false}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"maxLength\" MUST be an integer");
+	try validatorMaxLength(j(`{"maxLength": "foo"}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"maxLength\" MUST be an integer");
+	try validatorMaxLength(j(`{"maxLength": 1.2}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"maxLength\" MUST be an integer");
+	try validatorMaxLength(j(`{"maxLength": -1.2}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"maxLength\" MUST be an integer");
+	try validatorMaxLength(j(`{"maxLength": -1}`), Json(0)); catch (Exception e) assert(e.msg == "The value of \"maxLength\" MUST be greater than, or equal to, 0");
+
+	assert(validatorMaxLength(j(`{"maxLength": 0}`), Json(0)));
+	assert(validatorMaxLength(j(`{"maxLength": 0}`), Json(false)));
+	
+	assert(validatorMaxLength(j(`{"maxLength": 0}`), Json("")));
+	assert(!validatorMaxLength(j(`{"maxLength": 0}`), Json("0")));
+	assert(!validatorMaxLength(j(`{"maxLength": 0}`), Json("foo")));
+	assert(!validatorMaxLength(j(`{"maxLength": 2}`), Json("foo")));
+	assert(validatorMaxLength(j(`{"maxLength": 3}`), Json("foo")));
+}
+
+bool validatorProperties(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.4
+
+
+
+	return false;
+}
+
 bool validateJson(Json schema, Json json)
 {
 	assert(schema.type == Json.Type.object);
@@ -248,6 +535,49 @@ bool validateJson(Json schema, Json json)
 					return false;
 				break;
 
+			case "exclusiveMinimum":
+				if (!validatorExclusiveMinimum(schema, json))
+					return false;
+				break;
+
+			case "maximum":
+				if (!validatorMaximum(schema, json))
+					return false;
+				break;
+
+			case "exclusiveMaximum":
+				if (!validatorExclusiveMaximum(schema, json))
+					return false;
+				break;
+
+			case "multipleOf":
+				if (!validatorMultipleOf(schema, json))
+					return false;
+				break;
+
+			case "minLength":
+				if (!validatorMinLength(schema, json))
+					return false;
+				break;
+
+			case "maxLength":
+				if (!validatorMaxLength(schema, json))
+					return false;
+				break;
+
+			case "properties":
+				if (!validatorProperties(schema, json))
+					return false;
+				break;
+
+			case "pattern":
+			case "format":
+			case "minProperties":
+			case "maxProperties":
+			case "dependencies":
+			case "patternProperties":
+				assert(0, "todo");
+
 			default:
 				break;
 		}
@@ -260,3 +590,5 @@ unittest {
 	Json scheme = parseJsonString(`{"type": "integer", "minimum": 0}`);
 	assert(validateJson(scheme, Json(42)));
 }
+
+//additionalProperties, required
