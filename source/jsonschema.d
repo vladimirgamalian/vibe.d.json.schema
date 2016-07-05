@@ -915,6 +915,28 @@ unittest {
 	//TODO: more tests
 }
 
+bool validatorEnum(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.1
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("enum" in schema);
+
+	Json enum_ = schema["enum"];
+	checkNonEmptyArray(enum_, "enum");
+
+	foreach (size_t i, Json e; enum_)
+		if (e == json)
+			return true;
+
+	return false;
+}
+
+unittest {
+	//TODO: more tests
+}
+
 bool validateJson(Json schema, Json json)
 {
 	assert(schema.type == Json.Type.object);
@@ -1020,6 +1042,11 @@ bool validateJson(Json schema, Json json)
 
 			case "not":
 				if (!validatorNot(schema, json))
+					return false;
+				break;
+
+			case "enum":
+				if (!validatorEnum(schema, json))
 					return false;
 				break;
 	

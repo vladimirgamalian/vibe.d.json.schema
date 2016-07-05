@@ -57,7 +57,6 @@ void main()
 
 	string[] excluded = ["default.json", "definitions.json", "dependencies.json",
 	"pattern.json", "patternProperties.json", "ref.json", "refRemote.json",
-	"enum.json",
 	"additionalProperties.json",
 	"maxLength.json", "minLength.json",
 	"properties.json"];

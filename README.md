@@ -28,7 +28,6 @@ assert(valid);
 
 ### Not supported yet
 * GENERAL
-  * enum
   * definitions
   * $ref
 * STRING
