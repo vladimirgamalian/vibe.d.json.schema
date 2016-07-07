@@ -28,11 +28,6 @@ assert(valid);
 
 ### Not supported yet
 * GENERAL
-  * enum
-  * anyOf
-  * allOf
-  * oneOf
-  * not
   * definitions
   * $ref
 * STRING
@@ -40,4 +35,3 @@ assert(valid);
   * format
 * OBJECT
   * dependencies
-  * patternProperties

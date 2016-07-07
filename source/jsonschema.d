@@ -1,10 +1,51 @@
-module jsonschemanew;
+module jsonschema;
 
 import vibe.d;
+import std.regex;
+
 
 version(unittest)
 {
 	alias j = parseJsonString;
+}
+
+void checkObject(Json json, string keyword)
+{
+	if (json.type != Json.Type.object)
+	    throw new Exception("The value of \"" ~ keyword ~ "\" MUST be an object");
+}
+
+void checkArray(Json json, string keyword)
+{
+	if (json.type != Json.Type.array)
+	    throw new Exception("The value of \"" ~ keyword ~ "\" MUST be an array");
+}
+
+void checkNonEmptyArray(Json json, string keyword)
+{
+	checkArray(json, keyword);
+	if (json.length == 0)
+		throw new Exception("The \"" ~ keyword ~ "\" array MUST have at least one element");
+}
+
+Json getPropAsObject(Json json, string keyword)
+{
+	Json result = json[keyword];
+	checkObject(result, keyword);
+	return result;
+}
+
+void setDefaultEmptyObject(ref Json schema, string prop)
+{
+	if (!(prop in schema))
+		schema[prop] = Json.emptyObject;
+}
+
+unittest {
+	Json j = Json(["foo": Json(42)]);
+	assert(j["bar"].type == Json.Type.undefined);
+	setDefaultEmptyObject(j, "bar");
+	assert(j["bar"].type == Json.Type.object);
 }
 
 bool testType(Json json, string type)
@@ -388,7 +429,7 @@ bool validatorMultipleOf(Json schema, Json json)
 		double v = json.to!double;
 		//TODO: tolerance
 		double k = v / m;
-		return ((k - std.math.fabs(k)) < 0.0000001);
+		return ((k - std.math.trunc(k)) < 0.0000001);
 	}
 	
 	long m = multipleOf.to!long;
@@ -510,37 +551,59 @@ unittest {
 
 bool validatorProperties(Json schema, Json json)
 {
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.8.3
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.4
 
 	assert(schema.type == Json.Type.object);
 	assert(json.type != Json.Type.undefined);
-	assert("properties" in schema);
 
-	Json properties = schema["properties"];
-	if (properties.type != Json.Type.object)
-	    throw new Exception("The value of \"properties\" MUST be an object");
+	// set some default values
+	setDefaultEmptyObject(schema, "properties");
+	setDefaultEmptyObject(schema, "patternProperties");
+	setDefaultEmptyObject(schema, "additionalProperties");
+
+	Json properties = getPropAsObject(schema, "properties");
+	Json patternProperties = getPropAsObject(schema, "patternProperties");
+
+	Json additionalProperties = schema["additionalProperties"];
+	if ((additionalProperties.type != Json.Type.object) && (additionalProperties.type != Json.Type.bool_))
+		throw new Exception("The value of \"additionalProperties\" MUST be an object or boolean");
 
 	if (json.type != Json.Type.object)
 		return true;
 
-	Json additionalProperties = schema["additionalProperties"];
-	if (additionalProperties.type != Json.Type.undefined)
-		if (additionalProperties != Json.Type.object)
-			throw new Exception("The value of \"additionalProperties\" MUST be an object");
+	bool allowAdditionalPropertites = true;
+	if (additionalProperties.type == Json.Type.bool_)
+	{
+		allowAdditionalPropertites = additionalProperties.get!bool;
+		additionalProperties = Json.emptyObject;
+	}
 
 	foreach (string k, v; json)
 	{
-		Json subSchema = properties[k];
-		if (subSchema.type != Json.Type.undefined)
-		{
-			if (!validateJson(subSchema, v))
+		// all schemas to pass
+		Json[] schemas;
+		
+		// first, add a schema from "properties"
+		if (k in properties)
+			schemas ~= properties[k];
+
+		// next, add all matched schemas from "patternProperties"
+		foreach (string r, v; patternProperties)
+			if (matchFirst(k, r))
+				schemas ~= v;
+
+		// then, if schemas have not been found and additionalProperties allowed, add "additionalProperties"
+		if (allowAdditionalPropertites && (schemas.length == 0))
+			schemas ~= additionalProperties;
+
+		if (schemas.length == 0)
+			return false;
+
+		// now test all schemas
+		foreach (s; schemas)
+			if (!validateJson(s, v))
 				return false;
-		} 
-		else if (additionalProperties.type != Json.Type.undefined)
-		{
-			if (!validateJson(additionalProperties, v))
-				return false;
-		}
 	}
 
 	return true;
@@ -563,6 +626,7 @@ bool validatorRequired(Json schema, Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("required" in schema);
 
+	//TODO: replace with check functions
 	Json required = schema["required"];
 	if (required.type != Json.Type.array)
 	    throw new Exception("The value of \"required\" MUST be an array");
@@ -636,9 +700,10 @@ bool validatorItems(Json schema, Json json)
 			if (i < items.length)
 			{
 				Json subSchema = items[i];
+
 				if (subSchema.type != Json.Type.object)
 					throw new Exception("items of \"items\" array MUST be objects");
-				if (!validateJson(items, e))
+				if (!validateJson(subSchema, e))
 					return false;
 			}
 			else if (addItems)
@@ -795,9 +860,139 @@ unittest {
 	//TODO: more tests
 }
 
+bool validatorAnyOf(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.4
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("anyOf" in schema);
+
+	Json anyOf = schema["anyOf"];
+	checkNonEmptyArray(anyOf, "anyOf");
+
+	foreach (size_t i, Json e; anyOf)
+	{
+		if (e.type != Json.Type.object)
+			throw new Exception("items of \"anyOf\" array MUST be objects");
+
+		if (validateJson(e, json))
+			return true;
+	}
+
+	return false;
+}
+
+unittest {
+	//TODO: more tests
+}
+
+bool validatorAllOf(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.3
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("allOf" in schema);
+
+	Json allOf = schema["allOf"];
+	checkNonEmptyArray(allOf, "allOf");
+
+	foreach (size_t i, Json e; allOf)
+	{
+		if (e.type != Json.Type.object)
+			throw new Exception("items of \"allOf\" array MUST be objects");
+
+		if (!validateJson(e, json))
+			return false;
+	}
+
+	return true;
+}
+
+unittest {
+	//TODO: more tests
+
+}
+bool validatorOneOf(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.5
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("oneOf" in schema);
+
+	Json oneOf = schema["oneOf"];
+	checkNonEmptyArray(oneOf, "oneOf");
+
+	int valid = 0;
+	foreach (size_t i, Json e; oneOf)
+	{
+		if (e.type != Json.Type.object)
+			throw new Exception("items of \"oneOf\" array MUST be objects");
+
+		if (validateJson(e, json))
+		{
+			valid++;
+			if (valid > 1)
+				break;
+		}
+	}
+
+	return (valid == 1);
+}
+
+unittest {
+	//TODO: more tests
+
+}
+bool validatorNot(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.6
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("not" in schema);
+
+	Json not = schema["not"];
+	if (not.type != Json.Type.object)
+		throw new Exception("The value of \"not\" MUST be an object");
+
+	return !validateJson(not, json);
+}
+
+unittest {
+	//TODO: more tests
+}
+
+bool validatorEnum(Json schema, Json json)
+{
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.1
+
+	assert(schema.type == Json.Type.object);
+	assert(json.type != Json.Type.undefined);
+	assert("enum" in schema);
+
+	Json enum_ = schema["enum"];
+	checkNonEmptyArray(enum_, "enum");
+
+	foreach (size_t i, Json e; enum_)
+		if (e == json)
+			return true;
+
+	return false;
+}
+
+unittest {
+	//TODO: more tests
+}
+
 bool validateJson(Json schema, Json json)
 {
 	assert(schema.type == Json.Type.object);
+
+	if (!validatorProperties(schema, json))
+		return false;
 
 	foreach (string key, value; schema)
 	{
@@ -843,11 +1038,6 @@ bool validateJson(Json schema, Json json)
 					return false;
 				break;
 
-			case "properties":
-				if (!validatorProperties(schema, json))
-					return false;
-				break;
-
 			case "required":
 				if (!validatorRequired(schema, json))
 					return false;
@@ -883,10 +1073,34 @@ bool validateJson(Json schema, Json json)
 					return false;
 				break;
 
+			case "anyOf":
+				if (!validatorAnyOf(schema, json))
+					return false;
+				break;
+
+			case "allOf":
+				if (!validatorAllOf(schema, json))
+					return false;
+				break;
+
+			case "oneOf":
+				if (!validatorOneOf(schema, json))
+					return false;
+				break;
+
+			case "not":
+				if (!validatorNot(schema, json))
+					return false;
+				break;
+
+			case "enum":
+				if (!validatorEnum(schema, json))
+					return false;
+				break;
+	
 			case "pattern":
 			case "format":
 			case "dependencies":
-			case "patternProperties":
 				assert(0, "todo");
 
 			default:
