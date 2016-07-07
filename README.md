@@ -35,4 +35,3 @@ assert(valid);
   * format
 * OBJECT
   * dependencies
-  * patternProperties

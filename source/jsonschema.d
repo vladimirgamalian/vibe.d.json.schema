@@ -1,10 +1,51 @@
 module jsonschema;
 
 import vibe.d;
+import std.regex;
+
 
 version(unittest)
 {
 	alias j = parseJsonString;
+}
+
+void checkObject(Json json, string keyword)
+{
+	if (json.type != Json.Type.object)
+	    throw new Exception("The value of \"" ~ keyword ~ "\" MUST be an object");
+}
+
+void checkArray(Json json, string keyword)
+{
+	if (json.type != Json.Type.array)
+	    throw new Exception("The value of \"" ~ keyword ~ "\" MUST be an array");
+}
+
+void checkNonEmptyArray(Json json, string keyword)
+{
+	checkArray(json, keyword);
+	if (json.length == 0)
+		throw new Exception("The \"" ~ keyword ~ "\" array MUST have at least one element");
+}
+
+Json getPropAsObject(Json json, string keyword)
+{
+	Json result = json[keyword];
+	checkObject(result, keyword);
+	return result;
+}
+
+void setDefaultEmptyObject(ref Json schema, string prop)
+{
+	if (!(prop in schema))
+		schema[prop] = Json.emptyObject;
+}
+
+unittest {
+	Json j = Json(["foo": Json(42)]);
+	assert(j["bar"].type == Json.Type.undefined);
+	setDefaultEmptyObject(j, "bar");
+	assert(j["bar"].type == Json.Type.object);
 }
 
 bool testType(Json json, string type)
@@ -510,37 +551,59 @@ unittest {
 
 bool validatorProperties(Json schema, Json json)
 {
+	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.8.3
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.4
 
 	assert(schema.type == Json.Type.object);
 	assert(json.type != Json.Type.undefined);
-	assert("properties" in schema);
 
-	Json properties = schema["properties"];
-	if (properties.type != Json.Type.object)
-	    throw new Exception("The value of \"properties\" MUST be an object");
+	// set some default values
+	setDefaultEmptyObject(schema, "properties");
+	setDefaultEmptyObject(schema, "patternProperties");
+	setDefaultEmptyObject(schema, "additionalProperties");
+
+	Json properties = getPropAsObject(schema, "properties");
+	Json patternProperties = getPropAsObject(schema, "patternProperties");
+
+	Json additionalProperties = schema["additionalProperties"];
+	if ((additionalProperties.type != Json.Type.object) && (additionalProperties.type != Json.Type.bool_))
+		throw new Exception("The value of \"additionalProperties\" MUST be an object or boolean");
 
 	if (json.type != Json.Type.object)
 		return true;
 
-	Json additionalProperties = schema["additionalProperties"];
-	if (additionalProperties.type != Json.Type.undefined)
-		if (additionalProperties != Json.Type.object)
-			throw new Exception("The value of \"additionalProperties\" MUST be an object");
+	bool allowAdditionalPropertites = true;
+	if (additionalProperties.type == Json.Type.bool_)
+	{
+		allowAdditionalPropertites = additionalProperties.get!bool;
+		additionalProperties = Json.emptyObject;
+	}
 
 	foreach (string k, v; json)
 	{
-		Json subSchema = properties[k];
-		if (subSchema.type != Json.Type.undefined)
-		{
-			if (!validateJson(subSchema, v))
+		// all schemas to pass
+		Json[] schemas;
+		
+		// first, add a schema from "properties"
+		if (k in properties)
+			schemas ~= properties[k];
+
+		// next, add all matched schemas from "patternProperties"
+		foreach (string r, v; patternProperties)
+			if (matchFirst(k, r))
+				schemas ~= v;
+
+		// then, if schemas have not been found and additionalProperties allowed, add "additionalProperties"
+		if (allowAdditionalPropertites && (schemas.length == 0))
+			schemas ~= additionalProperties;
+
+		if (schemas.length == 0)
+			return false;
+
+		// now test all schemas
+		foreach (s; schemas)
+			if (!validateJson(s, v))
 				return false;
-		} 
-		else if (additionalProperties.type != Json.Type.undefined)
-		{
-			if (!validateJson(additionalProperties, v))
-				return false;
-		}
 	}
 
 	return true;
@@ -797,19 +860,6 @@ unittest {
 	//TODO: more tests
 }
 
-void checkArray(Json json, string keyword)
-{
-	if (json.type != Json.Type.array)
-	    throw new Exception("The value of \"" ~ keyword ~ "\" MUST be an array");
-}
-
-void checkNonEmptyArray(Json json, string keyword)
-{
-	checkArray(json, keyword);
-	if (json.length == 0)
-		throw new Exception("The \"" ~ keyword ~ "\" array MUST have at least one element");
-}
-
 bool validatorAnyOf(Json schema, Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.4
@@ -941,6 +991,9 @@ bool validateJson(Json schema, Json json)
 {
 	assert(schema.type == Json.Type.object);
 
+	if (!validatorProperties(schema, json))
+		return false;
+
 	foreach (string key, value; schema)
 	{
 		switch (key)
@@ -982,11 +1035,6 @@ bool validateJson(Json schema, Json json)
 
 			case "maxLength":
 				if (!validatorMaxLength(schema, json))
-					return false;
-				break;
-
-			case "properties":
-				if (!validatorProperties(schema, json))
 					return false;
 				break;
 
@@ -1053,7 +1101,6 @@ bool validateJson(Json schema, Json json)
 			case "pattern":
 			case "format":
 			case "dependencies":
-			case "patternProperties":
 				assert(0, "todo");
 
 			default:
