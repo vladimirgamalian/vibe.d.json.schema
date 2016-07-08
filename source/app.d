@@ -4,7 +4,7 @@ import std.stdio;
 import std.algorithm;
 import std.array;
 import vibe.d;
-import jsonschema;
+import jsonschema: validateJson;
 
 void executeTest(Json schema, Json test)
 {

@@ -9,26 +9,26 @@ version(unittest)
 	alias j = parseJsonString;
 }
 
-void checkObject(Json json, string keyword)
+void checkObject(const ref Json json, string keyword)
 {
 	if (json.type != Json.Type.object)
 	    throw new Exception("The value of \"" ~ keyword ~ "\" MUST be an object");
 }
 
-void checkArray(Json json, string keyword)
+void checkArray(const ref Json json, string keyword)
 {
 	if (json.type != Json.Type.array)
 	    throw new Exception("The value of \"" ~ keyword ~ "\" MUST be an array");
 }
 
-void checkNonEmptyArray(Json json, string keyword)
+void checkNonEmptyArray(const ref Json json, string keyword)
 {
 	checkArray(json, keyword);
 	if (json.length == 0)
 		throw new Exception("The \"" ~ keyword ~ "\" array MUST have at least one element");
 }
 
-Json getPropAsObject(Json json, string keyword)
+Json getPropAsObject(const ref Json json, string keyword)
 {
 	Json result = json[keyword];
 	checkObject(result, keyword);
@@ -48,7 +48,7 @@ unittest {
 	assert(j["bar"].type == Json.Type.object);
 }
 
-bool testType(Json json, string type)
+bool testType(const ref Json json, string type)
 {
 	assert(json.type != Json.Type.undefined);
 
@@ -173,7 +173,7 @@ unittest {
 	assert(testType(j(`{"foo": "bar"}`), "object"));
 }
 
-bool validatorType(Json schema, Json json)
+bool validatorType(const ref Json schema, const ref Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.2
 
@@ -234,7 +234,7 @@ unittest {
 	assert(validatorType(j(`{"type": ["number", "string"]}`), Json("foo")));
 }
 
-bool validatorMinimum(Json schema, Json json)
+bool validatorMinimum(const ref Json schema, const ref Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.1.3
 
@@ -300,7 +300,7 @@ unittest {
 	assert(!validatorMinimum(j(`{"minimum": 0, "exclusiveMinimum": true}`), Json(0)));
 }
 
-bool validatorExclusiveMinimum(Json schema, Json json)
+bool validatorExclusiveMinimum(const ref Json schema, const ref Json json)
 {
 	// covered in validatorMinimum, just check minimum field presense
 
@@ -320,7 +320,7 @@ unittest
 	validatorExclusiveMinimum(j(`{"minimum": 1, "exclusiveMinimum": false}`), Json(42));
 }
 
-bool validatorMaximum(Json schema, Json json)
+bool validatorMaximum(const ref Json schema, const ref Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.1.2
 
@@ -386,7 +386,7 @@ unittest {
 	assert(!validatorMaximum(j(`{"maximum": 1, "exclusiveMaximum": true}`), Json(1)));
 }
 
-bool validatorExclusiveMaximum(Json schema, Json json)
+bool validatorExclusiveMaximum(const ref Json schema, const ref Json json)
 {
 	// covered in validatorMinimum, just check minimum field presense
 
@@ -406,7 +406,7 @@ unittest
 	validatorExclusiveMaximum(j(`{"maximum": 1, "exclusiveMaximum": false}`), Json(42));
 }
 
-bool validatorMultipleOf(Json schema, Json json)
+bool validatorMultipleOf(const ref Json schema, const ref Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.1.1
 
@@ -473,7 +473,7 @@ unittest {
 	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(-2.0)));
 }
 
-bool validatorMinLength(Json schema, Json json)
+bool validatorMinLength(const ref Json schema, const ref Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.2.2
 
@@ -511,7 +511,7 @@ unittest {
 	assert(!validatorMinLength(j(`{"minLength": 4}`), Json("foo")));
 }
 
-bool validatorMaxLength(Json schema, Json json)
+bool validatorMaxLength(const ref Json schema, const ref Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.2.1
 
@@ -549,10 +549,12 @@ unittest {
 	assert(validatorMaxLength(j(`{"maxLength": 3}`), Json("foo")));
 }
 
-bool validatorProperties(Json schema, Json json)
+bool validatorProperties(const ref Json schema_, const ref Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.8.3
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.4
+
+	Json schema = schema_;
 
 	assert(schema.type == Json.Type.object);
 	assert(json.type != Json.Type.undefined);
