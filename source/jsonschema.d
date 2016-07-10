@@ -3,6 +3,10 @@ module jsonschema;
 import vibe.d;
 import std.regex;
 
+struct Context
+{
+	string[] errors;
+}
 
 version(unittest)
 {
@@ -48,7 +52,7 @@ unittest {
 	assert(j["bar"].type == Json.Type.object);
 }
 
-bool testType(const ref Json json, string type)
+bool testType(in Json json, string type)
 {
 	assert(json.type != Json.Type.undefined);
 
@@ -173,7 +177,7 @@ unittest {
 	assert(testType(j(`{"foo": "bar"}`), "object"));
 }
 
-bool validatorType(const ref Json schema, const ref Json json)
+bool validatorType(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.2
 
@@ -181,7 +185,7 @@ bool validatorType(const ref Json schema, const ref Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("type" in schema);
 
-	Json value = schema["type"];
+	const Json value = schema["type"];
 
 	switch (value.type)
 	{
@@ -190,7 +194,7 @@ bool validatorType(const ref Json schema, const ref Json json)
 			//TODO: Size of array can not be bigger than 7
 			if (value.length == 0)
 				throw new Exception("The value of\"type\" keyword MUST NOT be an empty array");
-			foreach (size_t i, Json e; value) 
+			foreach (const ref Json e; value) 
 			{
 				if (e.type != Json.Type.string)
 					throw new Exception("Elements of \"type\" keyword array MUST be strings");
@@ -234,7 +238,7 @@ unittest {
 	assert(validatorType(j(`{"type": ["number", "string"]}`), Json("foo")));
 }
 
-bool validatorMinimum(const ref Json schema, const ref Json json)
+bool validatorMinimum(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.1.3
 
@@ -245,12 +249,12 @@ bool validatorMinimum(const ref Json schema, const ref Json json)
 	if (!testType(json, "number"))
 		return true;
 
-	Json value = schema["minimum"];
+	const Json value = schema["minimum"];
 	if (!testType(value, "number"))
 		throw new Exception("The value of \"minimum\" MUST be a number");
 
 	bool exclusive = false;
-	Json exclusiveMinimum = schema["exclusiveMinimum"];
+	const Json exclusiveMinimum = schema["exclusiveMinimum"];
 	if (exclusiveMinimum.type() != Json.Type.undefined)
 	{
 		if (exclusiveMinimum.type() != Json.Type.bool_)
@@ -300,7 +304,7 @@ unittest {
 	assert(!validatorMinimum(j(`{"minimum": 0, "exclusiveMinimum": true}`), Json(0)));
 }
 
-bool validatorExclusiveMinimum(const ref Json schema, const ref Json json)
+bool validatorExclusiveMinimum(in Json schema, in Json json)
 {
 	// covered in validatorMinimum, just check minimum field presense
 
@@ -320,7 +324,7 @@ unittest
 	validatorExclusiveMinimum(j(`{"minimum": 1, "exclusiveMinimum": false}`), Json(42));
 }
 
-bool validatorMaximum(const ref Json schema, const ref Json json)
+bool validatorMaximum(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.1.2
 
@@ -331,12 +335,12 @@ bool validatorMaximum(const ref Json schema, const ref Json json)
 	if (!testType(json, "number"))
 		return true;
 
-	Json value = schema["maximum"];
+	const Json value = schema["maximum"];
 	if (!testType(value, "number"))
 		throw new Exception("The value of \"maximum\" MUST be a number");
 
 	bool exclusive = false;
-	Json exclusiveMaximum = schema["exclusiveMaximum"];
+	const Json exclusiveMaximum = schema["exclusiveMaximum"];
 	if (exclusiveMaximum.type() != Json.Type.undefined)
 	{
 		if (exclusiveMaximum.type() != Json.Type.bool_)
@@ -386,7 +390,7 @@ unittest {
 	assert(!validatorMaximum(j(`{"maximum": 1, "exclusiveMaximum": true}`), Json(1)));
 }
 
-bool validatorExclusiveMaximum(const ref Json schema, const ref Json json)
+bool validatorExclusiveMaximum(in Json schema, in Json json)
 {
 	// covered in validatorMinimum, just check minimum field presense
 
@@ -406,7 +410,7 @@ unittest
 	validatorExclusiveMaximum(j(`{"maximum": 1, "exclusiveMaximum": false}`), Json(42));
 }
 
-bool validatorMultipleOf(const ref Json schema, const ref Json json)
+bool validatorMultipleOf(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.1.1
 
@@ -414,7 +418,7 @@ bool validatorMultipleOf(const ref Json schema, const ref Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("multipleOf" in schema);
 
-	Json multipleOf = schema["multipleOf"];
+	const Json multipleOf = schema["multipleOf"];
 	if (!testType(multipleOf, "number"))
 		throw new Exception("The value of \"multipleOf\" MUST be a number");
 	
@@ -473,7 +477,7 @@ unittest {
 	assert(validatorMultipleOf(j(`{"multipleOf": 2.0}`), Json(-2.0)));
 }
 
-bool validatorMinLength(const ref Json schema, const ref Json json)
+bool validatorMinLength(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.2.2
 
@@ -481,7 +485,7 @@ bool validatorMinLength(const ref Json schema, const ref Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("minLength" in schema);
 
-	Json minLength = schema["minLength"];
+	const Json minLength = schema["minLength"];
 	if (!testType(minLength, "integer"))
 		throw new Exception("The value of \"minLength\" MUST be an integer");
 	long m = minLength.to!long;
@@ -511,7 +515,7 @@ unittest {
 	assert(!validatorMinLength(j(`{"minLength": 4}`), Json("foo")));
 }
 
-bool validatorMaxLength(const ref Json schema, const ref Json json)
+bool validatorMaxLength(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.2.1
 
@@ -519,7 +523,7 @@ bool validatorMaxLength(const ref Json schema, const ref Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("maxLength" in schema);
 
-	Json maxLength = schema["maxLength"];
+	const Json maxLength = schema["maxLength"];
 	if (!testType(maxLength, "integer"))
 	    throw new Exception("The value of \"maxLength\" MUST be an integer");
 	long m = maxLength.to!long;
@@ -549,7 +553,7 @@ unittest {
 	assert(validatorMaxLength(j(`{"maxLength": 3}`), Json("foo")));
 }
 
-bool validatorProperties(const ref Json schema_, const ref Json json)
+bool validatorProperties(in Json schema_, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.8.3
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.4
@@ -564,8 +568,8 @@ bool validatorProperties(const ref Json schema_, const ref Json json)
 	setDefaultEmptyObject(schema, "patternProperties");
 	setDefaultEmptyObject(schema, "additionalProperties");
 
-	Json properties = getPropAsObject(schema, "properties");
-	Json patternProperties = getPropAsObject(schema, "patternProperties");
+	const Json properties = getPropAsObject(schema, "properties");
+	const Json patternProperties = getPropAsObject(schema, "patternProperties");
 
 	Json additionalProperties = schema["additionalProperties"];
 	if ((additionalProperties.type != Json.Type.object) && (additionalProperties.type != Json.Type.bool_))
@@ -604,7 +608,7 @@ bool validatorProperties(const ref Json schema_, const ref Json json)
 
 		// now test all schemas
 		foreach (s; schemas)
-			if (!validateJson(s, v))
+			if (!validateJsonRecursively(s, v))
 				return false;
 	}
 
@@ -620,7 +624,7 @@ unittest {
 	//TODO: more tests
 }
 
-bool validatorRequired(Json schema, Json json)
+bool validatorRequired(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.3
 
@@ -629,7 +633,7 @@ bool validatorRequired(Json schema, Json json)
 	assert("required" in schema);
 
 	//TODO: replace with check functions
-	Json required = schema["required"];
+	const Json required = schema["required"];
 	if (required.type != Json.Type.array)
 	    throw new Exception("The value of \"required\" MUST be an array");
 	if (required.length == 0)
@@ -640,7 +644,7 @@ bool validatorRequired(Json schema, Json json)
 	if (json.type != Json.Type.object)
 		return true;
 
-	foreach (size_t i, Json e; required)
+	foreach (const ref Json e; required)
 	{
 		if (e.type != Json.Type.string)
 			throw new Exception("Elements of \"required\" array MUST be strings");
@@ -662,7 +666,7 @@ unittest {
 	assert(!validatorRequired(schema, j(`{"baz": 42, "bar": "baz"}`)));
 }
 
-bool validatorItems(Json schema, Json json)
+bool validatorItems(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.3.1
 
@@ -670,11 +674,11 @@ bool validatorItems(Json schema, Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("items" in schema);
 
-	Json items = schema["items"];
+	const Json items = schema["items"];
 	if ((items.type != Json.Type.object) && (items.type != Json.Type.array))
 	    throw new Exception("The value of \"items\" MUST be either an object or an array");
 
-	Json additionalItems = schema["additionalItems"];
+	const Json additionalItems = schema["additionalItems"];
 	if ((additionalItems.type != Json.Type.undefined) && (additionalItems.type != Json.Type.bool_) && (additionalItems.type != Json.Type.object))
 	    throw new Exception("The value of \"additionalItems\" MUST be either a boolean or an object.");
 
@@ -690,14 +694,14 @@ bool validatorItems(Json schema, Json json)
 		if (additionalItems.type != Json.Type.undefined)
 			logWarn("When \"items\" is a single schema, the \"additionalItems\" keyword is meaningless, and it should not be used.");
 
-		foreach (size_t i, Json e; json)
-			if (!validateJson(items, e))
+		foreach (const ref Json e; json)
+			if (!validateJsonRecursively(items, e))
 				return false;
 	}
 
 	if (items.type == Json.Type.array)
 	{
-		foreach (size_t i, Json e; json)
+		foreach (size_t i, const ref Json e; json)
 		{
 			if (i < items.length)
 			{
@@ -705,13 +709,13 @@ bool validatorItems(Json schema, Json json)
 
 				if (subSchema.type != Json.Type.object)
 					throw new Exception("items of \"items\" array MUST be objects");
-				if (!validateJson(subSchema, e))
+				if (!validateJsonRecursively(subSchema, e))
 					return false;
 			}
 			else if (addItems)
 			{
 				if (additionalItems.type == Json.Type.object)
-					if (!validateJson(additionalItems, e))
+					if (!validateJsonRecursively(additionalItems, e))
 						return false;
 			}
 			else
@@ -726,7 +730,7 @@ unittest {
 	//TODO: more tests
 }
 
-bool validatorMinItems(Json schema, Json json)
+bool validatorMinItems(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.3.3
 
@@ -734,7 +738,7 @@ bool validatorMinItems(Json schema, Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("minItems" in schema);
 
-	Json minItems = schema["minItems"];
+	const Json minItems = schema["minItems"];
 	if (!testType(minItems, "integer"))
 	    throw new Exception("The value of \"minItems\" MUST be an integer");
 	long m = minItems.to!long;
@@ -751,7 +755,7 @@ unittest {
 	//TODO: more tests
 }
 
-bool validatorMaxItems(Json schema, Json json)
+bool validatorMaxItems(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.3.2
 
@@ -759,7 +763,7 @@ bool validatorMaxItems(Json schema, Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("maxItems" in schema);
 
-	Json maxItems = schema["maxItems"];
+	const Json maxItems = schema["maxItems"];
 	if (!testType(maxItems, "integer"))
 	    throw new Exception("The value of \"maxItems\" MUST be an integer");
 	long m = maxItems.to!long;
@@ -776,7 +780,7 @@ unittest {
 	//TODO: more tests
 }
 
-bool validatorUniqueItems(Json schema, Json json)
+bool validatorUniqueItems(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.3.4
 
@@ -784,7 +788,7 @@ bool validatorUniqueItems(Json schema, Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("uniqueItems" in schema);
 
-	Json uniqueItems = schema["uniqueItems"];
+	const Json uniqueItems = schema["uniqueItems"];
 	if (uniqueItems.type != Json.Type.bool_)
 	    throw new Exception("The value of \"uniqueItems\" MUST be a boolean");
 
@@ -795,7 +799,7 @@ bool validatorUniqueItems(Json schema, Json json)
 	{
 		//TODO: use RedBlackTree
 		bool[string] a;
-		foreach (size_t i, Json e; json)
+		foreach (const ref Json e; json)
 		{
 			//TODO: check if string with qoutes
 			string s = e.toString;
@@ -812,7 +816,7 @@ unittest {
 	//TODO: more tests
 }
 
-bool validatorMinProperties(Json schema, Json json)
+bool validatorMinProperties(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.2
 
@@ -820,7 +824,7 @@ bool validatorMinProperties(Json schema, Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("minProperties" in schema);
 
-	Json minProperties = schema["minProperties"];
+	const Json minProperties = schema["minProperties"];
 	if (!testType(minProperties, "integer"))
 	    throw new Exception("The value of \"minProperties\" MUST be an integer");
 	long m = minProperties.to!long;
@@ -837,7 +841,7 @@ unittest {
 	//TODO: more tests
 }
 
-bool validatorMaxProperties(Json schema, Json json)
+bool validatorMaxProperties(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.4.1
 
@@ -845,7 +849,7 @@ bool validatorMaxProperties(Json schema, Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("maxProperties" in schema);
 
-	Json maxProperties = schema["maxProperties"];
+	const Json maxProperties = schema["maxProperties"];
 	if (!testType(maxProperties, "integer"))
 	    throw new Exception("The value of \"maxProperties\" MUST be an integer");
 	long m = maxProperties.to!long;
@@ -862,7 +866,7 @@ unittest {
 	//TODO: more tests
 }
 
-bool validatorAnyOf(Json schema, Json json)
+bool validatorAnyOf(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.4
 
@@ -870,15 +874,15 @@ bool validatorAnyOf(Json schema, Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("anyOf" in schema);
 
-	Json anyOf = schema["anyOf"];
+	const Json anyOf = schema["anyOf"];
 	checkNonEmptyArray(anyOf, "anyOf");
 
-	foreach (size_t i, Json e; anyOf)
+	foreach (const ref Json e; anyOf)
 	{
 		if (e.type != Json.Type.object)
 			throw new Exception("items of \"anyOf\" array MUST be objects");
 
-		if (validateJson(e, json))
+		if (validateJsonRecursively(e, json))
 			return true;
 	}
 
@@ -889,7 +893,7 @@ unittest {
 	//TODO: more tests
 }
 
-bool validatorAllOf(Json schema, Json json)
+bool validatorAllOf(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.3
 
@@ -897,15 +901,15 @@ bool validatorAllOf(Json schema, Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("allOf" in schema);
 
-	Json allOf = schema["allOf"];
+	const Json allOf = schema["allOf"];
 	checkNonEmptyArray(allOf, "allOf");
 
-	foreach (size_t i, Json e; allOf)
+	foreach (const ref Json e; allOf)
 	{
 		if (e.type != Json.Type.object)
 			throw new Exception("items of \"allOf\" array MUST be objects");
 
-		if (!validateJson(e, json))
+		if (!validateJsonRecursively(e, json))
 			return false;
 	}
 
@@ -916,7 +920,7 @@ unittest {
 	//TODO: more tests
 
 }
-bool validatorOneOf(Json schema, Json json)
+bool validatorOneOf(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.5
 
@@ -924,16 +928,16 @@ bool validatorOneOf(Json schema, Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("oneOf" in schema);
 
-	Json oneOf = schema["oneOf"];
+	const Json oneOf = schema["oneOf"];
 	checkNonEmptyArray(oneOf, "oneOf");
 
 	int valid = 0;
-	foreach (size_t i, Json e; oneOf)
+	foreach (const ref Json e; oneOf)
 	{
 		if (e.type != Json.Type.object)
 			throw new Exception("items of \"oneOf\" array MUST be objects");
 
-		if (validateJson(e, json))
+		if (validateJsonRecursively(e, json))
 		{
 			valid++;
 			if (valid > 1)
@@ -948,7 +952,7 @@ unittest {
 	//TODO: more tests
 
 }
-bool validatorNot(Json schema, Json json)
+bool validatorNot(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.6
 
@@ -956,18 +960,18 @@ bool validatorNot(Json schema, Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("not" in schema);
 
-	Json not = schema["not"];
+	const Json not = schema["not"];
 	if (not.type != Json.Type.object)
 		throw new Exception("The value of \"not\" MUST be an object");
 
-	return !validateJson(not, json);
+	return !validateJsonRecursively(not, json);
 }
 
 unittest {
 	//TODO: more tests
 }
 
-bool validatorEnum(Json schema, Json json)
+bool validatorEnum(in Json schema, in Json json)
 {
 	// http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.5.1
 
@@ -975,10 +979,10 @@ bool validatorEnum(Json schema, Json json)
 	assert(json.type != Json.Type.undefined);
 	assert("enum" in schema);
 
-	Json enum_ = schema["enum"];
+	const Json enum_ = schema["enum"];
 	checkNonEmptyArray(enum_, "enum");
 
-	foreach (size_t i, Json e; enum_)
+	foreach (const ref Json e; enum_)
 		if (e == json)
 			return true;
 
@@ -989,7 +993,7 @@ unittest {
 	//TODO: more tests
 }
 
-bool validateJson(Json schema, Json json)
+bool validateJsonRecursively(in Json schema, in Json json)
 {
 	assert(schema.type == Json.Type.object);
 
@@ -1111,6 +1115,11 @@ bool validateJson(Json schema, Json json)
 	}
 
 	return true;
+}
+
+bool validateJson(in Json schema, in Json json)
+{
+	return validateJsonRecursively(schema, json);
 }
 
 unittest {
