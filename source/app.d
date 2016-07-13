@@ -5,6 +5,7 @@ import std.algorithm;
 import std.array;
 import vibe.d;
 import jsonschema: validateJson;
+import jsonpointer: jsonPointer;
 
 void executeTest(Json schema, Json test)
 {
@@ -53,21 +54,30 @@ void executeTestFile(Json testFile)
 
 void main()
 {
-	string testFolder = "JSON-Schema-Test-Suite/tests/draft4";
-
-	string[] excluded = ["default.json", "definitions.json", "dependencies.json",
-	"pattern.json", "ref.json", "refRemote.json",
-	"maxLength.json", "minLength.json"];
-	
-	string[] files = std.file.dirEntries(testFolder, "*.json", std.file.SpanMode.shallow)
-		.map!(a => a.name)
-		.filter!(a => !excluded.canFind(std.path.baseName(a)))
-        .array;
-
-    foreach(f; files)
 	{
-		writeln(std.path.baseName(f));
-		Json j = readFileUTF8(f).parseJsonString;
-		executeTestFile(j);
+		Json json = parseJsonString(`{
+					  "foo": "baz",
+					  "bar": [0, 1, 2]
+					  }`);
+		jsonPointer(json, "/bar/2");
+		return;
 	}
+
+	//string testFolder = "JSON-Schema-Test-Suite/tests/draft4";
+	//
+	//string[] excluded = ["default.json", "definitions.json", "dependencies.json",
+	//"pattern.json", "ref.json", "refRemote.json",
+	//"maxLength.json", "minLength.json"];
+	//
+	//string[] files = std.file.dirEntries(testFolder, "*.json", std.file.SpanMode.shallow)
+	//    .map!(a => a.name)
+	//    .filter!(a => !excluded.canFind(std.path.baseName(a)))
+	//    .array;
+	//
+	//foreach(f; files)
+	//{
+	//    writeln(std.path.baseName(f));
+	//    Json j = readFileUTF8(f).parseJsonString;
+	//    executeTestFile(j);
+	//}
 }
