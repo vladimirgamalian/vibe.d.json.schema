@@ -1,5 +1,6 @@
 module jsonschema;
 
+//TODO: import only json
 import vibe.d;
 import std.regex;
 
