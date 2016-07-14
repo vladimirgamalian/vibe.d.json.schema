@@ -12,7 +12,6 @@ version(unittest)
 	alias j = parseJsonString;
 }
 
-//TODO: special characters (~0, ~1)
 Json jsonPointer(in Json json, string path)
 {
 	if ((path.length > 0) && (!path.startsWith("/")))
@@ -25,6 +24,9 @@ Json jsonPointer(in Json json, string path)
 	Json result = json;
 	foreach (token; tokens)
 	{
+		token = token.replace("~1", "/");
+		token = token.replace("~0", "~");
+
 		switch (result.type)
 		{
 			case Json.Type.object:
@@ -106,12 +108,12 @@ unittest {
 	assert(jsonPointer(json, "/foo") == Json([Json("bar"), Json("baz")]));
 	assert(jsonPointer(json, "/foo/0") == Json("bar"));
 	assert(jsonPointer(json, "/") == Json(0));
-	//assert(jsonPointer(json, "/a~1b") == Json(1));
+	assert(jsonPointer(json, "/a~1b") == Json(1));
 	assert(jsonPointer(json, "/c%d") == Json(2));
 	assert(jsonPointer(json, "/e^f") == Json(3));
 	assert(jsonPointer(json, "/g|h") == Json(4));
-	//assert(jsonPointer(json, "/i\\j") == Json(5));
-	//assert(jsonPointer(json, "//k\"l") == Json(6));
+	assert(jsonPointer(json, "/i\\j") == Json(5));
+	assert(jsonPointer(json, "/k\"l") == Json(6));
 	assert(jsonPointer(json, "/ ") == Json(7));
-	//assert(jsonPointer(json, "/m~0n") == Json(8));
+	assert(jsonPointer(json, "/m~0n") == Json(8));
 }
