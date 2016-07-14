@@ -55,13 +55,20 @@ void executeTestFile(Json testFile)
 void main()
 {
 	{
-		Json json = parseJsonString(`{
-					  "foo": "baz",
-					  "bar": [0, 1, 2]
-					  }`);
-		jsonPointer(json, "/bar/2");
+		string[] tokens = split("/a", "/");
+		foreach(i, t; tokens)
+			writeln(i.to!string ~ " " ~ t);
 		return;
 	}
+
+	//{
+	//    Json json = parseJsonString(`{
+	//                  "foo": "baz",
+	//                  "bar": [0, 1, 2]
+	//                  }`);
+	//    jsonPointer(json, "/bar/2");
+	//    return;
+	//}
 
 	//string testFolder = "JSON-Schema-Test-Suite/tests/draft4";
 	//

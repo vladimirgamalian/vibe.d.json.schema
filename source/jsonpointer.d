@@ -1,5 +1,7 @@
 module jsonpointer;
 
+//https://tools.ietf.org/html/rfc6901
+
 //TODO: import only json
 import vibe.d;
 
@@ -13,14 +15,12 @@ version(unittest)
 //TODO: special characters (~0, ~1)
 Json jsonPointer(in Json json, string path)
 {
-	if (path.length < 2)
-		throw new Exception(InvalidJsonPointerException);
-	if (!path.startsWith("/"))
-		throw new Exception(InvalidJsonPointerException);
-	if (path.endsWith("/"))
+	if ((path.length > 0) && (!path.startsWith("/")))
 		throw new Exception(InvalidJsonPointerException);
 
-	string[] tokens = split(path, "/")[1..$];
+	string[] tokens = split(path, "/");
+	if (tokens.length > 0)
+		tokens = tokens[1..$];
 
 	Json result = json;
 	foreach (token; tokens)
@@ -46,9 +46,8 @@ Json jsonPointer(in Json json, string path)
 }
 
 unittest {
-	try jsonPointer(Json(), ""); catch (Exception e) assert(e.msg == InvalidJsonPointerException);
 	try jsonPointer(Json(), "baz"); catch (Exception e) assert(e.msg == InvalidJsonPointerException);
-	try jsonPointer(Json(), "/baz/"); catch (Exception e) assert(e.msg == InvalidJsonPointerException);
+	try jsonPointer(Json(), "baz/"); catch (Exception e) assert(e.msg == InvalidJsonPointerException);
 }
 
 unittest {
@@ -87,4 +86,32 @@ unittest {
 				  }
 				  }`);
 	assert(jsonPointer(json, "/foo/bar/baz/1/foo/1") == Json("bar"));
+}
+
+unittest {
+	Json json = j(`{
+				  "foo": ["bar", "baz"],
+				  "": 0,
+				  "a/b": 1,
+				  "c%d": 2,
+				  "e^f": 3,
+				  "g|h": 4,
+				  "i\\j": 5,
+				  "k\"l": 6,
+				  " ": 7,
+				  "m~n": 8
+				  }`);
+
+	assert(jsonPointer(json, "") == json);
+	assert(jsonPointer(json, "/foo") == Json([Json("bar"), Json("baz")]));
+	assert(jsonPointer(json, "/foo/0") == Json("bar"));
+	assert(jsonPointer(json, "/") == Json(0));
+	//assert(jsonPointer(json, "/a~1b") == Json(1));
+	assert(jsonPointer(json, "/c%d") == Json(2));
+	assert(jsonPointer(json, "/e^f") == Json(3));
+	assert(jsonPointer(json, "/g|h") == Json(4));
+	//assert(jsonPointer(json, "/i\\j") == Json(5));
+	//assert(jsonPointer(json, "//k\"l") == Json(6));
+	assert(jsonPointer(json, "/ ") == Json(7));
+	//assert(jsonPointer(json, "/m~0n") == Json(8));
 }
