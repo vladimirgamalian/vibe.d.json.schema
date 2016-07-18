@@ -24,8 +24,7 @@ Json jsonPointer(in Json json, string path)
 	Json result = json;
 	foreach (token; tokens)
 	{
-		token = token.replace("~1", "/");
-		token = token.replace("~0", "~");
+		token = token.replace("~1", "/").replace("~0", "~");
 
 		switch (result.type)
 		{
