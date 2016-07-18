@@ -6,7 +6,7 @@ d:
   - dmd-2.070.2
   
 script:
-  - dub build -v --vverbose 
+  - dub test -v --vverbose 
 
 notifications:
   email: false
