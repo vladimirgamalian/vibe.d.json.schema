@@ -4,10 +4,7 @@ module jsonschema;
 import vibe.d;
 import std.regex;
 
-struct Context
-{
-	string[] errors;
-}
+private {
 
 version(unittest)
 {
@@ -1117,6 +1114,8 @@ bool validateJsonRecursively(in Json schema, in Json json)
 
 	return true;
 }
+
+} // private
 
 bool validateJson(in Json schema, in Json json)
 {
