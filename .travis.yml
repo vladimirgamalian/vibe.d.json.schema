@@ -3,7 +3,7 @@ sudo: false
 language: d
 
 d:
-  - dmd-2.070.0
+  - dmd-2.070.2
 
 notifications:
   email: false
