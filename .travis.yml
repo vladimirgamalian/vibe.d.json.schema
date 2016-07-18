@@ -4,6 +4,9 @@ language: d
 
 d:
   - dmd-2.070.2
+  
+script:
+  - dub build -v --vverbose 
 
 notifications:
   email: false
