@@ -1,7 +1,6 @@
 module metaschema;
 
-//TODO: import only json
-import vibe.d;
+import vibe.data.json;
 
 Json getMetaSchema()
 {

@@ -2,8 +2,8 @@ module jsonpointer;
 
 //https://tools.ietf.org/html/rfc6901
 
-//TODO: import only json
-import vibe.d;
+import vibe.data.json;
+import std.string;
 
 immutable string InvalidJsonPointerException = "Invalid JSON Pointer";
 
