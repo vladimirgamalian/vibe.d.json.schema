@@ -33,5 +33,3 @@ assert(valid);
 * STRING
   * pattern
   * format
-* OBJECT
-  * dependencies
