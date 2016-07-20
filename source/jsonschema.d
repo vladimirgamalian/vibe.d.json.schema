@@ -990,6 +990,49 @@ private {
 		//TODO: more tests
 	}
 
+	bool validatorDependencies(in Json schema, in Json json)
+	{
+		assert(schema.type == Json.Type.object);
+		assert(json.type != Json.Type.undefined);
+		assert("dependencies" in schema);
+
+		const Json dependencies = schema["dependencies"];
+		checkObject(dependencies, "dependencies");
+
+		if (json.type != Json.Type.object)
+			return true;
+
+		foreach (string k, v; dependencies)
+		{
+			if (k in json)
+			{
+				if (v.type == Json.Type.array)
+				{
+					foreach (const ref Json i; v)
+					{
+						if (i.type != Json.Type.string)
+							throw new Exception("The value of \"dependencies\" keys MUST be either an array of string or an object");
+						if (!(i.get!string in json))
+							return false;
+					}
+				}
+				else if (v.type == Json.Type.object)
+				{
+					return validateJsonRecursively(v, json);
+				}
+				else
+				{
+					throw new Exception("The value of \"dependencies\" keys MUST be either an array of string or an object");
+				}
+			}
+		}
+		return true;
+	}
+
+	unittest {
+		//TODO: more tests
+	}
+
 	bool validateJsonRecursively(in Json schema, in Json json)
 	{
 		assert(schema.type == Json.Type.object);
@@ -1100,10 +1143,14 @@ private {
 					if (!validatorEnum(schema, json))
 						return false;
 					break;
+
+				case "dependencies":
+					if (!validatorDependencies(schema, json))
+						return false;
+					break;
 	
 				case "pattern":
 				case "format":
-				case "dependencies":
 					assert(0, "todo");
 
 				default:

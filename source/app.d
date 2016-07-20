@@ -56,7 +56,7 @@ void main()
 {
 	string testFolder = "JSON-Schema-Test-Suite/tests/draft4";
 
-	string[] excluded = ["default.json", "definitions.json", "dependencies.json",
+	string[] excluded = ["definitions.json",
 	"pattern.json", "ref.json", "refRemote.json",
 	"maxLength.json", "minLength.json"];
 
