@@ -4,6 +4,6 @@
 	"license": "MIT",
 	"authors": ["Vladimir Gamalian"],
 	"dependencies": {
-		"vibe-d": "==0.7.30-alpha.2"
+		"vibe-d": "==0.7.30-alpha.3"
 	}
 }

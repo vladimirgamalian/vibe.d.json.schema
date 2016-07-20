@@ -4,7 +4,8 @@ import std.stdio;
 import std.algorithm;
 import std.array;
 import vibe.d;
-import jsonschema;
+import jsonschema: validateJson;
+import jsonpointer: jsonPointer;
 
 void executeTest(Json schema, Json test)
 {
@@ -55,16 +56,16 @@ void main()
 {
 	string testFolder = "JSON-Schema-Test-Suite/tests/draft4";
 
-	string[] excluded = ["default.json", "definitions.json", "dependencies.json",
+	string[] excluded = ["definitions.json",
 	"pattern.json", "ref.json", "refRemote.json",
 	"maxLength.json", "minLength.json"];
-	
+
 	string[] files = std.file.dirEntries(testFolder, "*.json", std.file.SpanMode.shallow)
 		.map!(a => a.name)
 		.filter!(a => !excluded.canFind(std.path.baseName(a)))
-        .array;
+		.array;
 
-    foreach(f; files)
+	foreach(f; files)
 	{
 		writeln(std.path.baseName(f));
 		Json j = readFileUTF8(f).parseJsonString;

@@ -3,7 +3,10 @@ sudo: false
 language: d
 
 d:
-  - dmd-2.070.0
+  - dmd-2.070.2
+  
+script:
+  - dub test -v --vverbose 
 
 notifications:
   email: false
