@@ -29,6 +29,12 @@ private {
 			throw new Exception("The \"" ~ keyword ~ "\" array MUST have at least one element");
 	}
 
+	void checkString(const ref Json json, string keyword)
+	{
+		if (json.type != Json.Type.string)
+			throw new Exception("The value of \"" ~ keyword ~ "\" MUST be a string");
+	}
+
 	Json getPropAsObject(const ref Json json, string keyword)
 	{
 		Json result = json[keyword];
@@ -1033,6 +1039,24 @@ private {
 		//TODO: more tests
 	}
 
+	bool validatorPattern(in Json schema, in Json json)
+	{
+		assert(schema.type == Json.Type.object);
+		assert(json.type != Json.Type.undefined);
+		assert("pattern" in schema);
+
+		const Json pattern = schema["pattern"];
+		checkString(pattern, "pattern");
+
+		if (json.type != Json.Type.string)
+			return true;
+
+		if (matchFirst(json.get!string, pattern.get!string))
+			return true;
+
+		return false;
+	}
+
 	bool validateJsonRecursively(in Json schema, in Json json)
 	{
 		assert(schema.type == Json.Type.object);
@@ -1148,8 +1172,12 @@ private {
 					if (!validatorDependencies(schema, json))
 						return false;
 					break;
-	
+
 				case "pattern":
+					if (!validatorPattern(schema, json))
+						return false;
+					break;
+	
 				case "format":
 					assert(0, "todo");
 
