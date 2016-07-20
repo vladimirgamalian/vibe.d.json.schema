@@ -27,9 +27,5 @@ assert(valid);
 ```
 
 ### Not supported yet
-* GENERAL
   * definitions
   * $ref
-* STRING
-  * pattern
-  * format

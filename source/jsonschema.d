@@ -29,6 +29,12 @@ private {
 			throw new Exception("The \"" ~ keyword ~ "\" array MUST have at least one element");
 	}
 
+	void checkString(const ref Json json, string keyword)
+	{
+		if (json.type != Json.Type.string)
+			throw new Exception("The value of \"" ~ keyword ~ "\" MUST be a string");
+	}
+
 	Json getPropAsObject(const ref Json json, string keyword)
 	{
 		Json result = json[keyword];
@@ -1033,6 +1039,78 @@ private {
 		//TODO: more tests
 	}
 
+	bool validatorPattern(in Json schema, in Json json)
+	{
+		assert(schema.type == Json.Type.object);
+		assert(json.type != Json.Type.undefined);
+		assert("pattern" in schema);
+
+		const Json pattern = schema["pattern"];
+		checkString(pattern, "pattern");
+
+		if (json.type != Json.Type.string)
+			return true;
+
+		if (matchFirst(json.get!string, pattern.get!string))
+			return true;
+
+		return false;
+	}
+
+	unittest {
+		//TODO: more tests
+	}
+
+	bool validatorFormat(in Json schema, in Json json)
+	{
+		assert(schema.type == Json.Type.object);
+		assert(json.type != Json.Type.undefined);
+		assert("format" in schema);
+
+		const Json pattern = schema["format"];
+		checkString(pattern, "format");
+
+		if (json.type != Json.Type.string)
+			return true;
+
+		//TODO: remake through map (name/pattern)
+		switch (pattern.get!string)
+		{
+			case "date-time":
+				if (!matchFirst(json.get!string, ctRegex!(r"(\d\d\d\d)(-)?(\d\d)(-)?(\d\d)(T)?(\d\d)(:)?(\d\d)(:)?(\d\d)(\.\d+)?(Z|([+-])(\d\d)(:)?(\d\d))")))
+					return false;
+				break;
+			case "email":
+				if (!matchFirst(json.get!string, ctRegex!(r"^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")))
+					return false;
+				break;
+			case "hostname":
+				if (!matchFirst(json.get!string, ctRegex!(r"^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]))*$")))
+					return false;
+				break;
+			case "ipv4":
+				if (!matchFirst(json.get!string, ctRegex!(r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")))
+					return false;
+				break;
+			case "ipv6":
+				if (!matchFirst(json.get!string, ctRegex!(r"^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|[fF][eE]80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::([fF]{4}(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$")))
+					return false;
+				break;
+			case "uri":
+				if (!matchFirst(json.get!string, ctRegex!(r"^([a-zA-Z][a-zA-Z0-9+-.]*:){0,1}\/\/[^\s]*$")))
+					return false;
+				break;
+			default: 
+				break;
+		}
+
+		return true;
+	}
+	
+	unittest {
+		//TODO: more tests
+	}
+
 	bool validateJsonRecursively(in Json schema, in Json json)
 	{
 		assert(schema.type == Json.Type.object);
@@ -1148,10 +1226,16 @@ private {
 					if (!validatorDependencies(schema, json))
 						return false;
 					break;
-	
+
 				case "pattern":
+					if (!validatorPattern(schema, json))
+						return false;
+					break;
+	
 				case "format":
-					assert(0, "todo");
+					if (!validatorFormat(schema, json))
+						return false;
+					break;
 
 				default:
 					break;

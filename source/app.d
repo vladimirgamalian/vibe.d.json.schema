@@ -57,10 +57,12 @@ void main()
 	string testFolder = "JSON-Schema-Test-Suite/tests/draft4";
 
 	string[] excluded = ["definitions.json",
-	"pattern.json", "ref.json", "refRemote.json",
-	"maxLength.json", "minLength.json"];
+	"ref.json", 
+	"refRemote.json",
+	"maxLength.json", "minLength.json",
+	"bignum.json", "zeroTerminatedFloats.json"];
 
-	string[] files = std.file.dirEntries(testFolder, "*.json", std.file.SpanMode.shallow)
+	string[] files = std.file.dirEntries(testFolder, "*.json", std.file.SpanMode.depth)
 		.map!(a => a.name)
 		.filter!(a => !excluded.canFind(std.path.baseName(a)))
 		.array;
