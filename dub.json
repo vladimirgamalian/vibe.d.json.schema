@@ -2,7 +2,7 @@
 	"name": "vibe-d-json-schema",
 	"description": "Add JSON Schema validation for vibe.d JSON",
 	"license": "MIT",
-	"authors": ["Vladimir Gamalian"],
+	"authors": ["Vladimir Gamalyan"],
 	"dependencies": {
 		"vibe-d": "==0.7.30-alpha.3"
 	}
