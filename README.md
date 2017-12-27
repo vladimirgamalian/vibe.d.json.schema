@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/vladimirgamalian/vibe.d.json.schema.svg?branch=master)](https://travis-ci.org/vladimirgamalian/vibe.d.json.schema)
+[![Build Status](https://travis-ci.org/vladimirgamalyan/vibe.d.json.schema.svg?branch=master)](https://travis-ci.org/vladimirgamalyan/vibe.d.json.schema)
 
 ### [JSON Schema](http://json-schema.org/) validation for [vibe.d](http://vibed.org/) [JSON](http://vibed.org/api/vibe.data.json/)
 
